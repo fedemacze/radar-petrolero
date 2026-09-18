@@ -9,6 +9,13 @@ interface OpenAIResponse {
   usage?: { input_tokens?: number; output_tokens?: number };
 }
 
+export class FatalAnalysisError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FatalAnalysisError";
+  }
+}
+
 function extractText(response: OpenAIResponse): string {
   if (response.output_text) return response.output_text;
   for (const output of response.output ?? []) {
@@ -36,7 +43,14 @@ export class OpportunityAnalyzer {
             store: false,
           }),
         });
-        if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}: ${(await response.text()).slice(0, 800)}`);
+        if (!response.ok) {
+          const body = (await response.text()).slice(0, 800);
+          const message = `OpenAI HTTP ${response.status}: ${body}`;
+          if ([401, 403].includes(response.status) || body.includes("insufficient_quota") || body.includes("credit_balance_exhausted")) {
+            throw new FatalAnalysisError(message);
+          }
+          throw new Error(message);
+        }
         const payload = await response.json() as OpenAIResponse;
         const opportunity = opportunitySchema.parse(JSON.parse(extractText(payload)));
         return {
@@ -52,6 +66,7 @@ export class OpportunityAnalyzer {
         };
       } catch (error) {
         lastError = error;
+        if (error instanceof FatalAnalysisError) throw error;
         if (attempt === 1) continue;
       }
     }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ATTIO, SOURCES } from "../config/radar.js";
 import type { AttioClient } from "../clients/attio.js";
 import type { OpportunityAnalyzer } from "../analysis/openai.js";
+import { FatalAnalysisError } from "../analysis/openai.js";
 import type { Database } from "../db/database.js";
 import type { Article, RunSummary, SourceAdapter } from "../domain/types.js";
 import type { Logger } from "../lib/logger.js";
@@ -83,7 +84,8 @@ export class RadarRunner {
           summary.errors += 1;
           const message = error instanceof Error ? error.message : String(error);
           await this.deps.database.recordSync(runId, event.eventKey, "analysis-or-sync", "failed", undefined, message);
-          this.deps.logger.error("Evento fallido", { eventKey: event.eventKey, error: message });
+          this.deps.logger.error(`Evento fallido: ${message}`, { eventKey: event.eventKey, error: message });
+          if (error instanceof FatalAnalysisError) throw error;
         }
       }
 
