@@ -1,0 +1,34 @@
+{
+  "name": "radar-petrolero",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "description": "Radar autónomo de oportunidades comerciales para Vermaz",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "local:check": "node --env-file=.env.local dist/src/migrate.js",
+    "local:preview": "node --env-file=.env.local dist/src/index.js --dry-run",
+    "start": "node dist/src/index.js",
+    "dev": "pnpm build && node dist/src/index.js",
+    "dry-run": "pnpm build && node dist/src/index.js --dry-run",
+    "migrate": "pnpm build && node dist/src/migrate.js",
+    "check-sources": "pnpm build && node dist/src/check-sources.js",
+    "test": "pnpm build && node --test dist/tests/*.test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5",
+    "pg": "^8.16.3",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/pg": "^8.15.5",
+    "typescript": "^5.9.3"
+  }
+}
