@@ -59,11 +59,16 @@ export class RadarRunner {
       const evaluated = newArticles.map(({ article }) => ({ article, prefilter: this.prefilter.evaluate(article) })).filter((item) => item.prefilter.accepted);
       summary.articlesAccepted = evaluated.length;
       const existingEvents = await this.deps.database.findRecentEvents();
-      const events = this.deduplicator.cluster(evaluated).map((event) => this.deduplicator.reconcile(event, existingEvents));
+      const newEvents = this.deduplicator.cluster(evaluated).map((event) => this.deduplicator.reconcile(event, existingEvents));
 
-      for (const event of events) {
+      for (const event of newEvents) {
         const articleIds = event.articles.map((article) => newArticles.find((item) => item.article.url === article.url)?.id).filter((id): id is number => id !== undefined);
         await this.deps.database.upsertEvent(event, articleIds);
+      }
+      const pendingEvents = await this.deps.database.findPendingEvents();
+      const events = [...new Map([...newEvents, ...pendingEvents].map((event) => [event.eventKey, event])).values()];
+
+      for (const event of events) {
         if (!await this.deps.database.needsAnalysis(event.eventKey)) continue;
         try {
           const analyzed = await this.deps.analyzer.analyze(event);

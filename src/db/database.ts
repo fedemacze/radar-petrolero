@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import type { AnalysisMetadata, Article, EventCandidate, Opportunity, RunSummary, SourceDefinition } from "../domain/types.js";
+import type { AnalysisMetadata, Article, EventCandidate, Opportunity, PrefilterResult, RunSummary, SourceDefinition } from "../domain/types.js";
 import type { ExistingEventFingerprint } from "../pipeline/deduplicator.js";
 import { normalizeUrl } from "../lib/text.js";
 
@@ -85,6 +85,38 @@ export class Database {
       [days],
     );
     return result.rows.map((row) => ({ eventKey: row.event_key, title: row.title, prefilter: row.prefilter as ExistingEventFingerprint["prefilter"] }));
+  }
+
+  async findPendingEvents(limit = 100): Promise<EventCandidate[]> {
+    const result = await this.pool.query<{
+      event_key: string; prefilter: PrefilterResult; primary_article_id: string | null; article_id: string;
+      source_id: string; source_name: string; title: string; url: string; published_at: Date | null;
+      content: string; content_hash: string; retrieved_at: Date;
+    }>(`SELECT e.event_key,e.prefilter,e.primary_article_id,a.id AS article_id,
+        a.source_id,a.source_name,a.title,a.url,a.published_at,a.content,a.content_hash,a.retrieved_at
+      FROM events e
+      JOIN event_articles ea ON ea.event_key=e.event_key
+      JOIN articles a ON a.id=ea.article_id
+      LEFT JOIN opportunities o ON o.event_key=e.event_key
+      WHERE o.event_key IS NULL
+      ORDER BY e.first_seen_at ASC,a.id ASC
+      LIMIT $1`, [limit]);
+    const grouped = new Map<string, { prefilter: PrefilterResult; primaryId: string | null; articles: Array<{ id: string; article: Article }> }>();
+    for (const row of result.rows) {
+      const item = grouped.get(row.event_key) ?? { prefilter: row.prefilter, primaryId: row.primary_article_id, articles: [] };
+      item.articles.push({ id: row.article_id, article: {
+        sourceId: row.source_id, sourceName: row.source_name, title: row.title, url: row.url,
+        publishedAt: row.published_at?.toISOString() ?? null, content: row.content, contentHash: row.content_hash,
+        retrievedAt: row.retrieved_at.toISOString(),
+      } });
+      grouped.set(row.event_key, item);
+    }
+    return [...grouped.entries()].map(([eventKey, item]) => ({
+      eventKey,
+      articles: item.articles.map(({ article }) => article),
+      primaryArticle: item.articles.find(({ id }) => id === item.primaryId)?.article ?? item.articles[0]!.article,
+      prefilter: item.prefilter,
+    }));
   }
 
   async needsAnalysis(eventKey: string): Promise<boolean> {
