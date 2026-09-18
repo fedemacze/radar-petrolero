@@ -42,6 +42,22 @@ export class Database {
   }
   async close(): Promise<void> { await this.pool.end(); }
 
+  async getPipelineCounts(): Promise<{ articles: number; events: number; linkedArticles: number; opportunities: number; pendingEvents: number }> {
+    const result = await this.pool.query<{
+      articles: string; events: string; linked_articles: string; opportunities: string; pending_events: string;
+    }>(`SELECT
+      (SELECT count(*) FROM articles) AS articles,
+      (SELECT count(*) FROM events) AS events,
+      (SELECT count(*) FROM event_articles) AS linked_articles,
+      (SELECT count(*) FROM opportunities) AS opportunities,
+      (SELECT count(*) FROM events e LEFT JOIN opportunities o ON o.event_key=e.event_key WHERE o.event_key IS NULL) AS pending_events`);
+    const row = result.rows[0]!;
+    return {
+      articles: Number(row.articles), events: Number(row.events), linkedArticles: Number(row.linked_articles),
+      opportunities: Number(row.opportunities), pendingEvents: Number(row.pending_events),
+    };
+  }
+
   async upsertSource(source: SourceDefinition): Promise<void> {
     await this.pool.query(`INSERT INTO sources(id,name,type,url,region,priority,enabled) VALUES($1,$2,$3,$4,$5,$6,$7)
       ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,type=EXCLUDED.type,url=EXCLUDED.url,region=EXCLUDED.region,priority=EXCLUDED.priority,enabled=EXCLUDED.enabled,updated_at=now()`,

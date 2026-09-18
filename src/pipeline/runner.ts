@@ -66,6 +66,8 @@ export class RadarRunner {
         await this.deps.database.upsertEvent(event, articleIds);
       }
       const pendingEvents = await this.deps.database.findPendingEvents();
+      const pipelineCounts = await this.deps.database.getPipelineCounts();
+      this.deps.logger.info("Estado de recuperación", { ...pipelineCounts, recoverableEvents: pendingEvents.length });
       const events = [...new Map([...newEvents, ...pendingEvents].map((event) => [event.eventKey, event])).values()];
 
       for (const event of events) {
