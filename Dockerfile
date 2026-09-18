@@ -13,4 +13,5 @@ ENV NODE_ENV=production
 COPY package.json pnpm-lock.yaml* ./
 RUN corepack enable && pnpm install --prod --frozen-lockfile
 COPY --from=build /app/dist ./dist
-CMD ["node", "dist/src/index.js"]
+COPY dashboard/dist ./dashboard/dist
+CMD ["node", "dist/src/server.js"]

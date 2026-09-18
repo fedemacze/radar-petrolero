@@ -14,6 +14,9 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   SOURCE_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
   MAX_ARTICLES_PER_SOURCE: z.coerce.number().int().positive().max(500).default(80),
+  PORT: z.coerce.number().int().positive().default(3000),
+  DASHBOARD_USER: z.string().default("radar"),
+  DASHBOARD_PASSWORD: z.string().min(12).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

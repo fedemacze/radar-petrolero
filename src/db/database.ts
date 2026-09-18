@@ -58,6 +58,29 @@ export class Database {
     };
   }
 
+  async getDashboardSnapshot(): Promise<Record<string, unknown>> {
+    const [opportunities, sources, runs] = await Promise.all([
+      this.pool.query(`SELECT o.event_key,o.opportunity,o.analyzed_at,o.input_tokens,o.output_tokens,o.attio_record_id,
+          e.title,a.url AS source_url
+        FROM opportunities o JOIN events e ON e.event_key=o.event_key
+        LEFT JOIN articles a ON a.id=e.primary_article_id
+        ORDER BY o.analyzed_at DESC LIMIT 200`),
+      this.pool.query(`SELECT id,name,type,region,priority,last_success_at,last_error_at,last_error
+        FROM sources ORDER BY priority,name`),
+      this.pool.query(`SELECT id,started_at,finished_at,status,dry_run,summary,error
+        FROM runs ORDER BY started_at DESC LIMIT 30`),
+    ]);
+    const usage = opportunities.rows.reduce((total, row) => total + Number(row.input_tokens ?? 0) * 0.15 / 1_000_000 + Number(row.output_tokens ?? 0) * 0.60 / 1_000_000, 0);
+    return { opportunities: opportunities.rows, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+  }
+
+  async hasCompletedRunToday(): Promise<boolean> {
+    const result = await this.pool.query<{ exists: boolean }>(
+      "SELECT EXISTS(SELECT 1 FROM runs WHERE status='completed' AND started_at >= date_trunc('day', now() AT TIME ZONE 'UTC')) AS exists",
+    );
+    return result.rows[0]?.exists ?? false;
+  }
+
   async upsertSource(source: SourceDefinition): Promise<void> {
     await this.pool.query(`INSERT INTO sources(id,name,type,url,region,priority,enabled) VALUES($1,$2,$3,$4,$5,$6,$7)
       ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,type=EXCLUDED.type,url=EXCLUDED.url,region=EXCLUDED.region,priority=EXCLUDED.priority,enabled=EXCLUDED.enabled,updated_at=now()`,
