@@ -1,6 +1,8 @@
 node_modules/
 .pnpm-store/
 dist/
+!dashboard/dist/
+!dashboard/dist/**
 .env
 .env.*
 !.env.example
