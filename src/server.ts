@@ -31,6 +31,7 @@ const runner = new RadarRunner({ database, sourceAdapter, analyzer, attio, logge
 const indexHtml = await readFile(resolve("dashboard/dist/index.html"));
 const appJs = await readFile(resolve("dashboard/dist/app.js"));
 let running = false;
+let attioStatus: { configured: boolean; valid: boolean; error: string | null } = { configured: Boolean(attio), valid: false, error: null };
 
 function authorized(request: IncomingMessage): boolean {
   const value = request.headers.authorization;
@@ -68,7 +69,17 @@ function scheduleNext(): void {
 }
 
 await database.migrate();
-if (!env.DRY_RUN && attio) await attio.validateAttributes();
+if (attio) {
+  try {
+    await attio.validateAttributes();
+    attioStatus = { configured: true, valid: true, error: null };
+    logger.info("Attio validado correctamente");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    attioStatus = { configured: true, valid: false, error: message };
+    logger.error(`Validación de Attio fallida: ${message}`);
+  }
+}
 
 const server = createServer(async (request, response) => {
   try {
@@ -77,7 +88,7 @@ const server = createServer(async (request, response) => {
       response.writeHead(401, { "www-authenticate": 'Basic realm="Radar Petrolero"' });
       return response.end("Acceso protegido");
     }
-    if (request.url === "/api/dashboard" && request.method === "GET") return json(response, 200, { ...(await database.getDashboardSnapshot()), running, dryRun: env.DRY_RUN });
+    if (request.url === "/api/dashboard" && request.method === "GET") return json(response, 200, { ...(await database.getDashboardSnapshot()), running, dryRun: env.DRY_RUN, attioStatus });
     if (request.url === "/api/run" && request.method === "POST") {
       if (running) return json(response, 409, { ok: false, message: "Ya hay una ejecución en curso" });
       void execute("manual");

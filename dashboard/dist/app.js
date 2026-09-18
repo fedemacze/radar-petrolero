@@ -54,7 +54,7 @@ async function loadRealData() {
   const health = document.querySelectorAll(".health-meta");
   health[0].textContent = `${lastRun?.summary?.sourcesSucceeded ?? 0} de ${lastRun?.summary?.sourcesAttempted ?? 20} respondieron`;
   health[1].textContent = `${lastRun?.summary?.articlesFetched ?? 0} artículos → ${lastRun?.summary?.eventsAnalyzed ?? 0} eventos analizados`;
-  health[2].textContent = data.dryRun ? "Modo simulación · sin escrituras" : `${lastRun?.summary?.attioCreated ?? 0} creadas · ${lastRun?.summary?.attioUpdated ?? 0} actualizadas`;
+  health[2].textContent = !data.attioStatus?.configured ? "Token pendiente" : !data.attioStatus.valid ? "Configuración pendiente de corregir" : data.dryRun ? "Conectado · modo simulación" : `${lastRun?.summary?.attioCreated ?? 0} creadas · ${lastRun?.summary?.attioUpdated ?? 0} actualizadas`;
 }
 
 loadRealData().catch((error) => {
