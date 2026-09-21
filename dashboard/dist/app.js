@@ -1,5 +1,13 @@
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const dateTime = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value)) : "Sin ejecuciones";
+const piresCompany = (value) => {
+  const name = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (/(^| )sga( |$)/.test(name)) return "SGA";
+  if (/(^| )dls( |$)/.test(name)) return "DLS";
+  if (/(^| )opsur( |$)/.test(name)) return "OPSUR";
+  if (name.includes("vientos del sur")) return "Vientos del Sur";
+  return "";
+};
 
 async function loadRealData() {
   const response = await fetch("/api/dashboard", { cache: "no-store" });
@@ -7,7 +15,8 @@ async function loadRealData() {
   const data = await response.json();
   const relevant = data.opportunities.filter((row) => row.opportunity.relevante);
   const qualified = relevant.filter((row) => row.opportunity.score_radar >= 75);
-  const prioritized = relevant.filter((row) => row.opportunity.score_radar >= 75 || row.opportunity.empresa_prioritaria);
+  const piresOpportunities = relevant.filter((row) => piresCompany(row.opportunity.empresa));
+  const prioritized = relevant.filter((row) => row.opportunity.score_radar >= 75 || piresCompany(row.opportunity.empresa));
   opportunities.splice(0, opportunities.length, ...prioritized.map((row, index) => {
     const value = row.opportunity;
     return {
@@ -15,7 +24,7 @@ async function loadRealData() {
       company: safe(value.empresa || "Empresa sin identificar"), project: safe(value.proyecto || row.title),
       signal: safe(value.tipo_senal), score: value.score_radar, priority: safe(value.prioridad), stage: safe(value.etapa_temporal),
       action: safe(value.tipo_accion), location: safe(value.provincia || value.cuenca || "Argentina"),
-      piress: value.empresa_prioritaria ? safe(value.empresa) : "", summary: safe(value.analisis_ia || value.resumen_evidencia),
+      piress: safe(piresCompany(value.empresa)), summary: safe(value.analisis_ia || value.resumen_evidencia),
       evidence: safe((value.hechos_publicados || []).join(" · ") || value.resumen_evidencia),
       services: (value.servicios_vermaz || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
       sourceUrl: row.source_url,
@@ -26,7 +35,7 @@ async function loadRealData() {
   metricValues[0].textContent = String(prioritized.length);
   metricValues[1].textContent = String(qualified.length);
   metricValues[2].textContent = String(data.opportunities.length);
-  metricValues[3].textContent = String(relevant.filter((row) => row.opportunity.empresa_prioritaria).length);
+  metricValues[3].textContent = String(piresOpportunities.length);
   const lastRun = data.runs[0];
   document.querySelector(".section-lead p").textContent = `Última ejecución: ${dateTime(lastRun?.finished_at)} · ${lastRun?.summary?.sourcesSucceeded ?? 0} fuentes procesadas`;
   const badge = document.querySelector(".demo-badge");
