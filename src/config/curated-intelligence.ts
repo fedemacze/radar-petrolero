@@ -1,0 +1,63 @@
+// Hallazgos investigados manualmente y respaldados por fuentes públicas.
+// Se mantienen separados de la salida automática para conservar su trazabilidad.
+export const CURATED_OPPORTUNITIES = [{
+  event_key: "CURATED-NOVA-ENERGY-PIRES-2026",
+  title: "Nova Energy integra activos de DLS en la Cuenca del Golfo San Jorge",
+  source_url: "https://www.adnsur.com.ar/pulso-energetico/los-nuevos-duenos-del-negocio-de-servicios-petroleros-en-la-cuenca-san-jorge--de-la-operacion-y-mantenimiento-al-servicio-de-torrres_a698f9c147c37ca1a1fe72bcb",
+  analyzed_at: "2026-09-21T12:00:00.000Z",
+  opportunity: {
+    relevante: true,
+    empresa: "SGA Servicios",
+    empresa_prioritaria: true,
+    provincia: "Chubut",
+    cuenca: "Cuenca del Golfo San Jorge",
+    proyecto: "Nova Energy · integración de activos DLS",
+    servicios_vermaz: [
+      { servicio: "Administración y logística de almacenes", justificacion: "La integración de 24 equipos y una estructura de 750 trabajadores justifica validar necesidades logísticas." },
+      { servicio: "Transporte de personal", justificacion: "La continuidad operativa de equipos de workover y pulling requiere movilidad de dotaciones; debe confirmarse el esquema de contratación." },
+    ],
+    tipo_senal: "Expansión operativa y redistribución de contratos",
+    score_radar: 64,
+    prioridad: "Media",
+    etapa_temporal: "En desarrollo",
+    horizonte: "Corto / 1–3 meses",
+    hechos_publicados: [
+      "Nova Energy está integrada por Vientos del Sur y SGA Servicios, ambas vinculadas a Pires.",
+      "La operación transfirió 24 equipos de workover y pulling y aproximadamente 750 trabajadores.",
+      "Servicios de operación y mantenimiento de NCY fueron redistribuidos entre SGA, Vientos del Sur y otros accionistas.",
+    ],
+    inferencias_comerciales: ["Conviene validar si la consolidación requiere apoyo logístico, transporte o administración de materiales."],
+    resumen_evidencia: "Expansión operativa documentada de empresas vinculadas a Pires en la Cuenca del Golfo San Jorge.",
+    analisis_ia: "Señal estratégica concreta, pero todavía sin licitación publicada para servicios de Vermaz; requiere investigación comercial antes de contactar.",
+    area_objetivo: "Operaciones y Abastecimiento",
+    cargo_objetivo: "Responsable de Operaciones o Supply Chain",
+    persona_objetivo_nombre: "",
+    motivo_contacto: "Integración de equipos y contratos operativos en la cuenca.",
+    buscar_en_attio: false,
+    linkedin_requerido: false,
+    mensaje_comercial_sugerido: "",
+    tipo_accion: "INVESTIGAR",
+    accion_sugerida: "Confirmar el esquema de proveedores de Nova Energy antes de realizar contacto comercial.",
+    confianza_ia: 72,
+  },
+}] as const;
+
+export const CURATED_CONTRACTS = [{
+  article_id: "CURATED-MANANTIALES-BEHR-2026",
+  source_url: "https://www.abcdiario.com.ar/locales/se-abrio-la-licitacion-en-manantiales-behr-y-garantizan-la-continuidad-laboral-de-los-trabajadores-de-aesa-4091/",
+  source_name: "ABC Diario",
+  base_end_date: null,
+  option_end_date: null,
+  expiry_label: "Licitación abierta · contrato en transición",
+  confidence: 88,
+  finding: {
+    relevant: true,
+    operator: "PECOM",
+    provider: "AESA (prestadora saliente)",
+    service: "Perforación, workover y pulling · soporte operativo asociado",
+    basin: "Cuenca del Golfo San Jorge",
+    province: "Chubut",
+    evidence: "La licitación ya está en marcha y la fuente informa que la empresa adjudicataria recibirá al personal actualmente perteneciente a AESA.",
+    confidence_basis: "Transición contractual y licitación abiertas publicadas; la fecha exacta de finalización no es pública.",
+  },
+}] as const;

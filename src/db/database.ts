@@ -5,6 +5,7 @@ import type { AnalysisMetadata, Article, ContractFinding, EventCandidate, Opport
 import type { ExistingEventFingerprint } from "../pipeline/deduplicator.js";
 import { normalizeUrl } from "../lib/text.js";
 import { enforceCommercialGate } from "../pipeline/commercial-gate.js";
+import { CURATED_CONTRACTS, CURATED_OPPORTUNITIES } from "../config/curated-intelligence.js";
 
 const { Pool } = pg;
 const LOCK_KEY = 1_934_728_011;
@@ -79,8 +80,9 @@ export class Database {
       } as unknown as EventCandidate;
       return { ...row, opportunity: enforceCommercialGate(event, row.opportunity as Opportunity) };
     });
-    const contracts = await this.getExpiringContracts();
-    return { opportunities: gatedOpportunities, contracts, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+    const contracts = [...CURATED_CONTRACTS, ...await this.getExpiringContracts()];
+    const mergedOpportunities = [...CURATED_OPPORTUNITIES, ...gatedOpportunities.filter((row) => !CURATED_OPPORTUNITIES.some((item) => item.event_key === row.event_key))];
+    return { opportunities: mergedOpportunities, contracts, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
   }
 
   async findContractCandidates(limit = 4): Promise<Array<{ id: number; article: Article }>> {
