@@ -48,7 +48,7 @@ export const CURATED_CONTRACTS = [{
   source_name: "ABC Diario",
   base_end_date: null,
   option_end_date: null,
-  expiry_label: "Licitación abierta · contrato en transición",
+  expiry_label: "Contrato AESA por finalizar · licitación abierta",
   confidence: 88,
   finding: {
     relevant: true,
@@ -57,7 +57,7 @@ export const CURATED_CONTRACTS = [{
     service: "Perforación, workover y pulling · soporte operativo asociado",
     basin: "Cuenca del Golfo San Jorge",
     province: "Chubut",
-    evidence: "La licitación ya está en marcha y la fuente informa que la empresa adjudicataria recibirá al personal actualmente perteneciente a AESA.",
+    evidence: "La licitación ya está en marcha y la fuente informa que la empresa adjudicataria recibirá al personal actualmente perteneciente a AESA, señal de finalización y reemplazo del contrato vigente.",
     confidence_basis: "Transición contractual y licitación abiertas publicadas; la fecha exacta de finalización no es pública.",
   },
 }] as const;

@@ -1,6 +1,6 @@
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const dateTime = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value)) : "Sin ejecuciones";
-document.querySelector("#dashboard-version").textContent = "Panel v6 · fuentes e inteligencia";
+document.querySelector("#dashboard-version").textContent = "Panel v6.1 · fuentes e inteligencia";
 const piresCompany = (value) => {
   const name = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (/(^| )sga( |$)/.test(name)) return "SGA";
