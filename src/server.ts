@@ -99,7 +99,7 @@ const server = createServer(async (request, response) => {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY" });
       return response.end(indexHtml);
     }
-    if (request.url === "/app.js") {
+    if (request.url?.startsWith("/app.js")) {
       response.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" });
       return response.end(appJs);
     }

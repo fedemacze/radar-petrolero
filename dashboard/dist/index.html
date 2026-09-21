@@ -31,7 +31,7 @@
         <button data-view="sources"><span class="icon">⌁</span>Fuentes</button>
         <button data-view="activity"><span class="icon">↻</span>Actividad</button>
       </nav>
-      <div class="sidebar-foot"><div class="live"><span class="dot"></span>Radar operativo</div><div>Próxima revisión · mañana 08:00</div></div>
+      <div class="sidebar-foot"><div class="live"><span class="dot"></span>Radar operativo</div><div>Próxima revisión · mañana 08:00</div><div id="dashboard-version" style="margin-top:6px;opacity:.65">Panel cargando…</div></div>
     </aside>
     <main>
       <header class="topbar">
@@ -90,6 +90,6 @@
     document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>{document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.querySelector(`#view-${button.dataset.view}`).classList.add("active");document.querySelector("#page-title").textContent={opportunities:"Oportunidades detectadas",sources:"Fuentes monitoreadas",activity:"Actividad del Radar"}[button.dataset.view];document.querySelector("#sidebar").classList.remove("open")});
     document.querySelector("#mobile-menu").onclick=()=>document.querySelector("#sidebar").classList.toggle("open");document.querySelector("#run-demo").onclick=()=>showToast("Demo ejecutada · 3 oportunidades calificadas");renderTable();renderDetail();
   </script>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=pires-exact-2" defer></script>
 </body>
 </html>
