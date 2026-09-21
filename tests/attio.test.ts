@@ -12,3 +12,15 @@ test("mapea una oportunidad al esquema existente de Attio", () => {
   assert.equal(values.prioridad, "🟢 Alta");
   assert.deepEqual(values.servicio_vermaz, ["Mantenimiento instalaciones de superficie"]);
 });
+
+test("normaliza Vaca Muerta a la opción de cuenca configurada en Attio", () => {
+  const primary = article();
+  const values = buildAttioValues(
+    { eventKey: "RP-VM", primaryArticle: primary, articles: [primary], prefilter: new Prefilter().evaluate(primary) },
+    opportunity({ provincia: "Neuquén", cuenca: "Vaca Muerta", horizonte: "Inmediata / 0–30 días" }),
+    { stageAttributeId: "stage-id", detectedStageId: "detected-id" },
+  );
+  assert.equal(values.provincia, "Neuquén");
+  assert.equal(values.cuenca, "Neuquina");
+  assert.equal(values.horizonte, "Inmediata");
+});

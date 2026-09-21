@@ -35,7 +35,7 @@ function signalType(value: string): string | undefined {
 
 function horizon(value: Opportunity["horizonte"]): string {
   const values: Record<Opportunity["horizonte"], string> = {
-    "Inmediata / 0–30 días": "0–30 días · Corto",
+    "Inmediata / 0–30 días": "Inmediata",
     "Corto / 1–3 meses": "1–3 meses · Medio",
     "Medio / 3–6 meses": "3–6 meses · Largo",
     "Largo / 6–12 meses": "6–12 meses · Futuro",
@@ -43,6 +43,22 @@ function horizon(value: Opportunity["horizonte"]): string {
     "Sin determinar": "+12 meses · Sin determinar",
   };
   return values[value];
+}
+
+function basin(value: string): string | undefined {
+  const normalized = value.toLocaleLowerCase("es-AR");
+  if (normalized.includes("vaca muerta") || normalized.includes("neuquin")) return "Neuquina";
+  if (normalized.includes("golfo san jorge")) return "Golfo San Jorge";
+  if (normalized.includes("austral")) return "Austral";
+  if (normalized.includes("cuyana")) return "Cuyana";
+  if (normalized.includes("noroeste")) return "Noroeste";
+  return undefined;
+}
+
+function province(value: string): string | undefined {
+  const provinces = ["Chubut", "Santa Cruz", "Neuquén", "Río Negro", "Mendoza", "Tierra del Fuego", "La Pampa", "Salta", "Jujuy"];
+  const normalized = value.toLocaleLowerCase("es-AR");
+  return provinces.find((item) => normalized === item.toLocaleLowerCase("es-AR"));
 }
 
 export function buildAttioValues(event: EventCandidate, opportunity: Opportunity, config: Pick<AttioConfig, "stageAttributeId" | "detectedStageId">): Record<string, unknown> {
@@ -63,8 +79,10 @@ export function buildAttioValues(event: EventCandidate, opportunity: Opportunity
     accion_sugerida: opportunity.accion_sugerida,
     confianza_ia: opportunity.confianza_ia,
   };
-  if (opportunity.provincia) values.provincia = opportunity.provincia;
-  if (opportunity.cuenca) values.cuenca = opportunity.cuenca.replace(/^Cuenca (del )?/i, "");
+  const normalizedProvince = province(opportunity.provincia);
+  if (normalizedProvince) values.provincia = normalizedProvince;
+  const normalizedBasin = basin(opportunity.cuenca);
+  if (normalizedBasin) values.cuenca = normalizedBasin;
   if (opportunity.proyecto) values.yacimiento_proyecto = opportunity.proyecto;
   const type = signalType(opportunity.tipo_senal);
   if (type) values.tipo_de_senal = type;
