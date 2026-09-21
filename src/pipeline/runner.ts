@@ -8,6 +8,7 @@ import type { Article, RunSummary, SourceAdapter } from "../domain/types.js";
 import type { Logger } from "../lib/logger.js";
 import { Prefilter } from "./prefilter.js";
 import { Deduplicator } from "./deduplicator.js";
+import { enforceCommercialGate } from "./commercial-gate.js";
 
 export interface RunnerDependencies {
   database: Database;
@@ -77,8 +78,9 @@ export class RadarRunner {
         try {
           const analyzed = await this.deps.analyzer.analyze(event);
           summary.eventsAnalyzed += 1;
-          await this.deps.database.saveAnalysis(event.eventKey, analyzed.opportunity, analyzed.metadata);
-          if (!analyzed.opportunity.relevante || analyzed.opportunity.score_radar < ATTIO.minimumScore) continue;
+          const opportunity = enforceCommercialGate(event, analyzed.opportunity);
+          await this.deps.database.saveAnalysis(event.eventKey, opportunity, analyzed.metadata);
+          if (!opportunity.relevante || opportunity.score_radar < ATTIO.minimumScore) continue;
           summary.opportunitiesQualified += 1;
           if (this.deps.dryRun || !this.deps.attio) {
             await this.deps.database.recordSync(runId, event.eventKey, "dry-run", "success");
@@ -87,7 +89,7 @@ export class RadarRunner {
           if (attioAttempts >= (this.deps.attioSyncLimit ?? 1)) continue;
           attioAttempts += 1;
           const knownRecordId = await this.deps.database.getAttioRecordId(event.eventKey);
-          const result = await this.deps.attio.upsert(event, analyzed.opportunity, knownRecordId);
+          const result = await this.deps.attio.upsert(event, opportunity, knownRecordId);
           if (result.action === "created") summary.attioCreated += 1;
           else summary.attioUpdated += 1;
           await this.deps.database.recordSync(runId, event.eventKey, result.action, "success", result.recordId);

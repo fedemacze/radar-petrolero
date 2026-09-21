@@ -4,6 +4,7 @@ import pg from "pg";
 import type { AnalysisMetadata, Article, EventCandidate, Opportunity, PrefilterResult, RunSummary, SourceDefinition } from "../domain/types.js";
 import type { ExistingEventFingerprint } from "../pipeline/deduplicator.js";
 import { normalizeUrl } from "../lib/text.js";
+import { enforceCommercialGate } from "../pipeline/commercial-gate.js";
 
 const { Pool } = pg;
 const LOCK_KEY = 1_934_728_011;
@@ -71,7 +72,14 @@ export class Database {
         FROM runs ORDER BY started_at DESC LIMIT 30`),
     ]);
     const usage = opportunities.rows.reduce((total, row) => total + Number(row.input_tokens ?? 0) * 0.15 / 1_000_000 + Number(row.output_tokens ?? 0) * 0.60 / 1_000_000, 0);
-    return { opportunities: opportunities.rows, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+    const gatedOpportunities = opportunities.rows.map((row) => {
+      const event = {
+        eventKey: row.event_key,
+        primaryArticle: { title: row.title },
+      } as unknown as EventCandidate;
+      return { ...row, opportunity: enforceCommercialGate(event, row.opportunity as Opportunity) };
+    });
+    return { opportunities: gatedOpportunities, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
   }
 
   async hasCompletedRunToday(): Promise<boolean> {

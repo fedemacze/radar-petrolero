@@ -33,6 +33,8 @@ export interface PrefilterResult {
   projectSignals: string[];
   serviceSignals: string[];
   earlySignals: string[];
+  displacementSignals: string[];
+  exclusionSignals: string[];
   ageDays: number | null;
 }
 
