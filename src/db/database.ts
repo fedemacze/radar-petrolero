@@ -100,12 +100,13 @@ export class Database {
   async importContacts(rows: Array<Record<string, string>>, source = "csv"): Promise<{ imported: number; skipped: number }> {
     let imported = 0; let skipped = 0;
     for (const row of rows) {
-      const name = (row.nombre || row.name || "").trim();
-      const company = (row.empresa || row.company || row.organizacion || "").trim();
-      const role = (row.cargo || row.role || row.puesto || "").trim();
-      const email = (row.email || row.correo || "").trim().toLowerCase();
-      const phone = (row.telefono || row.phone || row.celular || "").trim();
-      const linkedin = (row.linkedin || row.linkedin_url || "").trim();
+      const composedName = `${row.first_name || ""} ${row.middle_name || ""} ${row.last_name || ""}`.replace(/\s+/g, " ").trim();
+      const name = (row.nombre || row.name || row.names || row.full_name || row.display_name || composedName).trim();
+      const company = (row.empresa || row.company || row.company_name || row.organizacion || row.organization || "").trim();
+      const role = (row.cargo || row.role || row.puesto || row.job_title || row.title || "").trim();
+      const email = (row.email || row.correo || row.e_mail_address || row.email_address || row.primary_email || "").trim().toLowerCase();
+      const phone = (row.telefono || row.phone || row.celular || row.business_phone || row.mobile_phone || row.home_phone || "").trim();
+      const linkedin = (row.linkedin || row.linkedin_url || row.web_page || row.website || "").trim();
       if (!name || (!company && !email && !phone)) { skipped += 1; continue; }
       const sourceKey = email || sha256(`${normalizeText(name)}|${normalizeText(company)}|${normalizeText(role)}`);
       const rawUpdatedAt = (row.ultima_actualizacion || row.updated_at || "").trim();

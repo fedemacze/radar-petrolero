@@ -66,7 +66,7 @@ function parseCsv(input: string): Array<Record<string, string>> {
     else field += char;
   }
   row.push(field); if (row.some((value) => value.trim())) lines.push(row);
-  const headers = (lines.shift() ?? []).map((value) => value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_"));
+  const headers = (lines.shift() ?? []).map((value) => value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""));
   return lines.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index]?.trim() ?? ""])));
 }
 
@@ -118,7 +118,7 @@ const server = createServer(async (request, response) => {
       const rows = parseCsv(content);
       if (!rows.length) return json(response, 400, { error: "El archivo está vacío o no tiene filas de contactos" });
       const columns = Object.keys(rows[0] ?? {});
-      if (!columns.some((column) => ["nombre", "name"].includes(column))) return json(response, 400, { error: "No encuentro la columna 'nombre' en la primera fila" });
+      if (!columns.some((column) => ["nombre", "name", "names", "full_name", "display_name", "first_name"].includes(column))) return json(response, 400, { error: "No encuentro una columna de nombre. Acepto: nombre, name, names, full_name o first_name" });
       const result = await database.importContacts(rows);
       return json(response, 200, result);
     }
