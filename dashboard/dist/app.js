@@ -28,11 +28,13 @@ async function loadRealData() {
   const prioritized = relevant.filter((row) => row.opportunity.score_radar >= 75 || piresCompany(row.opportunity.empresa));
   opportunities.splice(0, opportunities.length, ...prioritized.map((row, index) => {
     const value = row.opportunity;
+    const followup = followups.find((item) => item.event_key === row.event_key);
+    const displayedAction = followup?.status === "contacted" ? "CONTACTADO" : followup?.status === "replied" ? "RESPONDIÓ" : safe(value.tipo_accion);
     return {
       id: index + 1, eventKey: row.event_key,
       company: safe(value.empresa || "Empresa sin identificar"), project: safe(value.proyecto || row.title),
       signal: safe(value.tipo_senal), score: value.score_radar, priority: safe(value.prioridad), stage: safe(value.etapa_temporal),
-      action: safe(value.tipo_accion), location: safe(value.provincia || value.cuenca || "Argentina"),
+      action: displayedAction, suggestedAction: safe(value.tipo_accion), location: safe(value.provincia || value.cuenca || "Argentina"),
       piress: safe(piresCompany(value.empresa)), summary: safe(value.analisis_ia || value.resumen_evidencia),
       evidence: safe((value.hechos_publicados || []).join(" · ") || value.resumen_evidencia),
       services: (value.servicios_vermaz || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
@@ -96,8 +98,8 @@ async function loadRealData() {
     const stateButton = (status, label) => `<button class="${current?.status === status ? "primary" : "secondary"}" onclick="saveFollowup('${status}')">${label}</button>`;
     detail.querySelector(".detail-body").insertAdjacentHTML("beforeend", `<div class="detail-section"><h4>Contactos disponibles</h4>${cards || '<p>No tenés contactos conocidos en esta empresa.</p>'}<div class="detail-footer"><a class="secondary" href="${linkedinSearch}" target="_blank" rel="noopener">Buscar perfil en LinkedIn</a></div></div><div class="detail-section"><h4>Seguimiento comercial</h4><div class="service-list">${stateButton("pending", "Pendiente")}${stateButton("contacted", "Contactado")}${stateButton("replied", "Respondió")}${stateButton("discarded", "Descartado")}</div><p class="location" style="margin-top:8px">Estado actual: ${followupLabel(current?.status || "Sin registrar")}${current?.contacted_at ? ` · Último contacto: ${dateTime(current.contacted_at)}` : ""}</p></div>`);
   };
-  const persistFollowup = async (eventKey, status) => { const result = await fetch("/api/followup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventKey, status }) }); if (!result.ok) throw new Error("No se pudo actualizar el seguimiento"); const existing = followups.find((item) => item.event_key === eventKey); const now = new Date().toISOString(); if (existing) { existing.status = status; existing.updated_at = now; if (status === "contacted") existing.contacted_at = now; } else followups.push({ event_key: eventKey, status, updated_at: now, contacted_at: status === "contacted" ? now : null }); };
-  window.saveFollowup = async (status) => { if (!selected?.eventKey) return; try { await persistFollowup(selected.eventKey, status); renderDetail(); renderFollowups(); showToast("Seguimiento actualizado"); } catch (error) { showToast(error.message); } };
+  const persistFollowup = async (eventKey, status) => { const result = await fetch("/api/followup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventKey, status }) }); if (!result.ok) throw new Error("No se pudo actualizar el seguimiento"); const existing = followups.find((item) => item.event_key === eventKey); const now = new Date().toISOString(); if (existing) { existing.status = status; existing.updated_at = now; if (status === "contacted") existing.contacted_at = now; } else followups.push({ event_key: eventKey, status, updated_at: now, contacted_at: status === "contacted" ? now : null }); const opportunity = opportunities.find((item) => item.eventKey === eventKey); if (opportunity) opportunity.action = status === "contacted" ? "CONTACTADO" : status === "replied" ? "RESPONDIÓ" : status === "discarded" ? "DESCARTADO" : opportunity.suggestedAction; };
+  window.saveFollowup = async (status) => { if (!selected?.eventKey) return; try { await persistFollowup(selected.eventKey, status); renderTable(); renderDetail(); renderFollowups(); showToast("Seguimiento actualizado"); } catch (error) { showToast(error.message); } };
   window.discardFollowup = async (eventKey) => { try { await persistFollowup(eventKey, "discarded"); renderFollowups(); showToast("Seguimiento descartado"); } catch (error) { showToast(error.message); } };
   const fileInput = document.querySelector("#contact-file");
   document.querySelector("#import-contacts").onclick = () => fileInput.click();
