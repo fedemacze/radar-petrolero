@@ -35,6 +35,7 @@ async function loadRealData() {
       company: safe(value.empresa || "Empresa sin identificar"), project: safe(value.proyecto || row.title),
       signal: safe(value.tipo_senal), score: value.score_radar, priority: safe(value.prioridad), stage: safe(value.etapa_temporal),
       action: displayedAction, suggestedAction: safe(value.tipo_accion), location: safe(value.provincia || value.cuenca || "Argentina"),
+      basin: safe(value.cuenca || "Sin determinar"), province: safe(value.provincia || "Sin determinar"),
       piress: safe(piresCompany(value.empresa)), summary: safe(value.analisis_ia || value.resumen_evidencia),
       evidence: safe((value.hechos_publicados || []).join(" · ") || value.resumen_evidencia),
       services: (value.servicios_vermaz || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
@@ -42,6 +43,13 @@ async function loadRealData() {
       sourceUrl: row.source_url,
     };
   }));
+  const fillFilter = (selector, values) => { const select = document.querySelector(selector); [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")).forEach((value) => select.add(new Option(value, value))); };
+  fillFilter("#filter-company", opportunities.map((item) => item.company));
+  fillFilter("#filter-basin", opportunities.map((item) => item.basin));
+  fillFilter("#filter-province", opportunities.map((item) => item.province));
+  fillFilter("#filter-service", opportunities.flatMap((item) => item.services));
+  fillFilter("#filter-stage", opportunities.map((item) => item.stage));
+  fillFilter("#filter-action", opportunities.map((item) => item.action));
   selected = opportunities[0];
   const metricValues = document.querySelectorAll(".metric-value");
   metricValues[0].textContent = String(contracts.length);
