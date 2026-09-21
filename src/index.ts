@@ -27,7 +27,7 @@ const attio = env.ATTIO_API_KEY ? new AttioClient({ apiKey: env.ATTIO_API_KEY, o
 try {
   await database.migrate();
   if (!dryRun && attio) await attio.validateAttributes();
-  const summary = await new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun }).run();
+  const summary = await new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT }).run();
   logger.info("Ejecución finalizada", summary as unknown as Record<string, unknown>);
 } catch (error) {
   logger.error("Ejecución abortada", { error: error instanceof Error ? error.message : String(error) });

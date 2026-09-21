@@ -27,7 +27,7 @@ const sourceAdapter = new SourceRouter({
 });
 const analyzer = new OpportunityAnalyzer(env.OPENAI_API_KEY, env.OPENAI_MODEL);
 const attio = env.ATTIO_API_KEY ? new AttioClient({ apiKey: env.ATTIO_API_KEY, object: env.ATTIO_OBJECT, stageAttributeId: env.ATTIO_STAGE_ATTRIBUTE_ID, detectedStageId: env.ATTIO_DETECTED_STAGE_ID }) : null;
-const runner = new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun: env.DRY_RUN });
+const runner = new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun: env.DRY_RUN, attioSyncLimit: env.ATTIO_SYNC_LIMIT });
 const indexHtml = await readFile(resolve("dashboard/dist/index.html"));
 const appJs = await readFile(resolve("dashboard/dist/app.js"));
 let running = false;

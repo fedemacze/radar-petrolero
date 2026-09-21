@@ -158,6 +158,44 @@ export class Database {
     }));
   }
 
+  async findUnsyncedQualifiedOpportunities(minimumScore: number, limit: number): Promise<Array<{ event: EventCandidate; opportunity: Opportunity }>> {
+    const result = await this.pool.query<{
+      event_key: string; opportunity: Opportunity; prefilter: PrefilterResult; primary_article_id: string | null; article_id: string;
+      source_id: string; source_name: string; title: string; url: string; published_at: Date | null;
+      content: string; content_hash: string; retrieved_at: Date;
+    }>(`WITH pending AS (
+        SELECT o.event_key,o.opportunity,e.prefilter,e.primary_article_id,o.analyzed_at
+        FROM opportunities o JOIN events e ON e.event_key=o.event_key
+        WHERE o.attio_record_id IS NULL
+          AND (o.opportunity->>'relevante')::boolean=true
+          AND (o.opportunity->>'score_radar')::int >= $1
+        ORDER BY o.analyzed_at DESC LIMIT $2
+      )
+      SELECT p.event_key,p.opportunity,p.prefilter,p.primary_article_id,a.id AS article_id,
+        a.source_id,a.source_name,a.title,a.url,a.published_at,a.content,a.content_hash,a.retrieved_at
+      FROM pending p JOIN event_articles ea ON ea.event_key=p.event_key
+      JOIN articles a ON a.id=ea.article_id
+      ORDER BY p.analyzed_at DESC,a.id ASC`, [minimumScore, limit]);
+    const grouped = new Map<string, { opportunity: Opportunity; prefilter: PrefilterResult; primaryId: string | null; articles: Array<{ id: string; article: Article }> }>();
+    for (const row of result.rows) {
+      const item = grouped.get(row.event_key) ?? { opportunity: row.opportunity, prefilter: row.prefilter, primaryId: row.primary_article_id, articles: [] };
+      item.articles.push({ id: row.article_id, article: {
+        sourceId: row.source_id, sourceName: row.source_name, title: row.title, url: row.url,
+        publishedAt: row.published_at?.toISOString() ?? null, content: row.content, contentHash: row.content_hash,
+        retrievedAt: row.retrieved_at.toISOString(),
+      } });
+      grouped.set(row.event_key, item);
+    }
+    return [...grouped.entries()].map(([eventKey, item]) => ({
+      opportunity: item.opportunity,
+      event: {
+        eventKey, articles: item.articles.map(({ article }) => article),
+        primaryArticle: item.articles.find(({ id }) => id === item.primaryId)?.article ?? item.articles[0]!.article,
+        prefilter: item.prefilter,
+      },
+    }));
+  }
+
   async needsAnalysis(eventKey: string): Promise<boolean> {
     const result = await this.pool.query<{ needed: boolean }>(`SELECT o.event_key IS NULL OR o.analyzed_at < e.last_seen_at AS needed
       FROM events e LEFT JOIN opportunities o ON o.event_key=e.event_key WHERE e.event_key=$1`, [eventKey]);
