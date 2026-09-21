@@ -71,7 +71,7 @@ export class RadarRunner {
       this.deps.logger.info("Estado de recuperación", { ...pipelineCounts, recoverableEvents: pendingEvents.length });
       const events = [...new Map([...newEvents, ...pendingEvents].map((event) => [event.eventKey, event])).values()];
 
-      let attioSynced = 0;
+      let attioAttempts = 0;
       for (const event of events) {
         if (!await this.deps.database.needsAnalysis(event.eventKey)) continue;
         try {
@@ -84,10 +84,10 @@ export class RadarRunner {
             await this.deps.database.recordSync(runId, event.eventKey, "dry-run", "success");
             continue;
           }
-          if (attioSynced >= (this.deps.attioSyncLimit ?? 1)) continue;
+          if (attioAttempts >= (this.deps.attioSyncLimit ?? 1)) continue;
+          attioAttempts += 1;
           const knownRecordId = await this.deps.database.getAttioRecordId(event.eventKey);
           const result = await this.deps.attio.upsert(event, analyzed.opportunity, knownRecordId);
-          attioSynced += 1;
           if (result.action === "created") summary.attioCreated += 1;
           else summary.attioUpdated += 1;
           await this.deps.database.recordSync(runId, event.eventKey, result.action, "success", result.recordId);
@@ -100,12 +100,12 @@ export class RadarRunner {
         }
       }
 
-      if (!this.deps.dryRun && this.deps.attio && attioSynced < (this.deps.attioSyncLimit ?? 1)) {
-        const pendingSync = await this.deps.database.findUnsyncedQualifiedOpportunities(ATTIO.minimumScore, (this.deps.attioSyncLimit ?? 1) - attioSynced);
+      if (!this.deps.dryRun && this.deps.attio && attioAttempts < (this.deps.attioSyncLimit ?? 1)) {
+        const pendingSync = await this.deps.database.findUnsyncedQualifiedOpportunities(ATTIO.minimumScore, (this.deps.attioSyncLimit ?? 1) - attioAttempts);
         for (const item of pendingSync) {
           try {
+            attioAttempts += 1;
             const result = await this.deps.attio.upsert(item.event, item.opportunity, null);
-            attioSynced += 1;
             if (result.action === "created") summary.attioCreated += 1;
             else summary.attioUpdated += 1;
             await this.deps.database.recordSync(runId, item.event.eventKey, result.action, "success", result.recordId);
