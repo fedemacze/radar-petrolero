@@ -39,7 +39,7 @@ async function loadRealData() {
   }));
   selected = opportunities[0];
   const metricValues = document.querySelectorAll(".metric-value");
-  metricValues[0].textContent = String(prioritized.length);
+  metricValues[0].textContent = String(contracts.length);
   metricValues[1].textContent = String(qualified.length);
   metricValues[2].textContent = String(data.opportunities.length);
   metricValues[3].textContent = String(piresOpportunities.length);
@@ -56,6 +56,10 @@ async function loadRealData() {
     const result = await run.json(); showToast(result.message);
     setTimeout(() => location.reload(), 4000);
   };
+  const contractsSummary = document.querySelector("#contracts-summary");
+  const openContracts = () => document.querySelector('.nav button[data-view="contracts"]').click();
+  contractsSummary.onclick = openContracts;
+  contractsSummary.onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openContracts(); } };
   if (opportunities.length) { renderTable(); renderDetail(); }
   else {
     document.querySelector("#opportunity-body").innerHTML = "";
