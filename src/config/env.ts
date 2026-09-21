@@ -18,6 +18,7 @@ const envSchema = z.object({
   DASHBOARD_USER: z.string().default("radar"),
   DASHBOARD_PASSWORD: z.string().min(12).optional(),
   ATTIO_SYNC_LIMIT: z.coerce.number().int().min(1).max(100).default(1),
+  ATTIO_PUBLICATION_ENABLED: booleanString.default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

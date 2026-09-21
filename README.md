@@ -44,6 +44,7 @@ La aplicación no carga `.env` por sí sola en producción: Railway inyecta las 
 - `ATTIO_STAGE_ATTRIBUTE_ID` y `ATTIO_DETECTED_STAGE_ID`: IDs recuperados del workflow original.
 - `DRY_RUN`: `true` impide toda escritura en Attio.
 - `ATTIO_SYNC_LIMIT`: máximo de oportunidades enviadas a Attio por ejecución; durante la validación se usa `1`.
+- `ATTIO_PUBLICATION_ENABLED`: interruptor adicional de seguridad; debe ser `true` además de `DRY_RUN=false` para escribir en Attio.
 - `DASHBOARD_USER` y `DASHBOARD_PASSWORD`: acceso al panel privado publicado por el servicio.
 - `SOURCE_TIMEOUT_MS` y `MAX_ARTICLES_PER_SOURCE`: límites de ingesta.
 

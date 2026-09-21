@@ -13,9 +13,10 @@ import { RssAdapter } from "./sources/rss.js";
 import { UnsupportedApiAdapter, WebAdapter } from "./sources/web.js";
 
 const env = loadEnv();
+const effectiveDryRun = env.DRY_RUN || !env.ATTIO_PUBLICATION_ENABLED;
 if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY es obligatoria");
 if (!env.DASHBOARD_PASSWORD) throw new Error("DASHBOARD_PASSWORD es obligatoria para publicar el panel");
-if (!env.DRY_RUN && !env.ATTIO_API_KEY) throw new Error("ATTIO_API_KEY es obligatoria cuando DRY_RUN=false");
+if (!effectiveDryRun && !env.ATTIO_API_KEY) throw new Error("ATTIO_API_KEY es obligatoria cuando la publicación está habilitada");
 
 const logger = new Logger(env.LOG_LEVEL);
 const database = new Database(env.DATABASE_URL);
@@ -27,7 +28,7 @@ const sourceAdapter = new SourceRouter({
 });
 const analyzer = new OpportunityAnalyzer(env.OPENAI_API_KEY, env.OPENAI_MODEL);
 const attio = env.ATTIO_API_KEY ? new AttioClient({ apiKey: env.ATTIO_API_KEY, object: env.ATTIO_OBJECT, stageAttributeId: env.ATTIO_STAGE_ATTRIBUTE_ID, detectedStageId: env.ATTIO_DETECTED_STAGE_ID }) : null;
-const runner = new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun: env.DRY_RUN, attioSyncLimit: env.ATTIO_SYNC_LIMIT });
+const runner = new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun: effectiveDryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT });
 const indexHtml = await readFile(resolve("dashboard/dist/index.html"));
 const appJs = await readFile(resolve("dashboard/dist/app.js"));
 let running = false;
@@ -88,7 +89,7 @@ const server = createServer(async (request, response) => {
       response.writeHead(401, { "www-authenticate": 'Basic realm="Radar Petrolero"' });
       return response.end("Acceso protegido");
     }
-    if (request.url === "/api/dashboard" && request.method === "GET") return json(response, 200, { ...(await database.getDashboardSnapshot()), running, dryRun: env.DRY_RUN, attioStatus });
+    if (request.url === "/api/dashboard" && request.method === "GET") return json(response, 200, { ...(await database.getDashboardSnapshot()), running, dryRun: effectiveDryRun, attioStatus });
     if (request.url === "/api/run" && request.method === "POST") {
       if (running) return json(response, 409, { ok: false, message: "Ya hay una ejecución en curso" });
       void execute("manual");
@@ -110,7 +111,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(env.PORT, "0.0.0.0", async () => {
-  logger.info("Dashboard disponible", { port: env.PORT, dryRun: env.DRY_RUN });
+  logger.info("Dashboard disponible", { port: env.PORT, dryRun: effectiveDryRun, attioPublicationEnabled: env.ATTIO_PUBLICATION_ENABLED });
   scheduleNext();
   if (!await database.hasCompletedRunToday()) void execute("catch-up");
 });

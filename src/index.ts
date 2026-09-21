@@ -9,7 +9,7 @@ import { RssAdapter } from "./sources/rss.js";
 import { UnsupportedApiAdapter, WebAdapter } from "./sources/web.js";
 
 const env = loadEnv();
-const dryRun = process.argv.includes("--dry-run") || env.DRY_RUN;
+const dryRun = process.argv.includes("--dry-run") || env.DRY_RUN || !env.ATTIO_PUBLICATION_ENABLED;
 if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY es obligatoria para analizar oportunidades");
 if (!dryRun && !env.ATTIO_API_KEY) throw new Error("ATTIO_API_KEY es obligatoria cuando DRY_RUN=false");
 
