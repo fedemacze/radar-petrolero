@@ -118,7 +118,7 @@ const server = createServer(async (request, response) => {
       const rows = parseCsv(content);
       if (!rows.length) return json(response, 400, { error: "El archivo está vacío o no tiene filas de contactos" });
       const columns = Object.keys(rows[0] ?? {});
-      if (!columns.some((column) => ["nombre", "name", "names", "full_name", "display_name", "first_name"].includes(column))) return json(response, 400, { error: "No encuentro una columna de nombre. Acepto: nombre, name, names, full_name o first_name" });
+      if (!columns.some((column) => ["nombre", "name", "names", "full_name", "display_name", "first_name"].includes(column))) return json(response, 400, { error: "No encuentro una columna de nombre compatible con Google, Outlook o Excel" });
       const result = await database.importContacts(rows);
       return json(response, 200, result);
     }

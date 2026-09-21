@@ -101,13 +101,14 @@ export class Database {
     let imported = 0; let skipped = 0;
     for (const row of rows) {
       const firstMatchingValue = (pattern: RegExp): string => Object.entries(row).find(([key, value]) => pattern.test(key) && value.trim())?.[1]?.trim() ?? "";
-      const composedName = `${row.first_name || ""} ${row.middle_name || ""} ${row.last_name || ""}`.replace(/\s+/g, " ").trim();
-      const name = (row.nombre || row.name || row.names || row.full_name || row.display_name || composedName).trim();
+      const composedEnglishName = `${row.first_name || ""} ${row.middle_name || ""} ${row.last_name || ""}`.replace(/\s+/g, " ").trim();
+      const composedSpanishName = `${row.nombre || ""} ${row.segundo_nombre || ""} ${row.apellidos || row.apellido || ""}`.replace(/\s+/g, " ").trim();
+      const name = (row.name || row.names || row.full_name || row.display_name || composedEnglishName || composedSpanishName).trim();
       const company = (row.empresa || row.company || row.company_name || row.organizacion || row.organization || row.organization_name || "").trim();
-      const role = (row.cargo || row.role || row.puesto || row.job_title || row.title || row.organization_title || "").trim();
-      const email = (row.email || row.correo || row.e_mail_address || row.email_address || row.primary_email || firstMatchingValue(/^e_mail_\d+_value$/)).trim().toLowerCase();
-      const phone = (row.telefono || row.phone || row.celular || row.business_phone || row.mobile_phone || row.home_phone || firstMatchingValue(/^phone_\d+_value$/)).trim();
-      const linkedin = (row.linkedin || row.linkedin_url || row.web_page || row.website || firstMatchingValue(/^(website|url)_\d+_value$/)).trim();
+      const role = (row.cargo || row.role || row.puesto || row.puesto_de_trabajo || row.job_title || row.title || row.organization_title || "").trim();
+      const email = (row.email || row.correo || row.correo_electronico || row.direccion_de_correo_electronico || row.e_mail_address || row.email_address || row.primary_email || firstMatchingValue(/^e_mail_\d+_(value|address)$/)).trim().toLowerCase();
+      const phone = (row.telefono || row.phone || row.celular || row.telefono_del_trabajo || row.telefono_movil || row.business_phone || row.mobile_phone || row.home_phone || firstMatchingValue(/^phone_\d+_value$/)).trim();
+      const linkedin = (row.linkedin || row.linkedin_url || row.pagina_web || row.web_page || row.website || firstMatchingValue(/^(website|url)_\d+_value$/)).trim();
       if (!name || (!company && !email && !phone)) { skipped += 1; continue; }
       const sourceKey = email || sha256(`${normalizeText(name)}|${normalizeText(company)}|${normalizeText(role)}`);
       const rawUpdatedAt = (row.ultima_actualizacion || row.updated_at || "").trim();
