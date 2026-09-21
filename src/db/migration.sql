@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS sources (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS user_added boolean NOT NULL DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS runs (
   id uuid PRIMARY KEY,
   started_at timestamptz NOT NULL DEFAULT now(),
@@ -125,3 +127,16 @@ CREATE TABLE IF NOT EXISTS opportunity_followups (
 ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS contacted_at timestamptz;
 
 CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts(normalized_company);
+
+CREATE TABLE IF NOT EXISTS private_intelligence (
+  id bigserial PRIMARY KEY,
+  article_id bigint NOT NULL UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
+  company text NOT NULL,
+  contract_name text NOT NULL DEFAULT '',
+  informant text NOT NULL DEFAULT '',
+  confidence integer NOT NULL CHECK(confidence BETWEEN 1 AND 100),
+  details text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS private_intelligence_created_idx ON private_intelligence(created_at DESC);

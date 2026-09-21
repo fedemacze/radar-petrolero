@@ -12,6 +12,8 @@ import { RadarRunner } from "./pipeline/runner.js";
 import { HttpClient, SourceRouter } from "./sources/http.js";
 import { RssAdapter } from "./sources/rss.js";
 import { UnsupportedApiAdapter, WebAdapter } from "./sources/web.js";
+import { sha256 } from "./lib/text.js";
+import type { SourceDefinition } from "./domain/types.js";
 
 const env = loadEnv();
 const effectiveDryRun = env.DRY_RUN || !env.ATTIO_PUBLICATION_ENABLED;
@@ -70,6 +72,23 @@ function parseCsv(input: string): Array<Record<string, string>> {
   return lines.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index]?.trim() ?? ""])));
 }
 
+function publicHttpUrl(value: string): URL {
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error("La fuente debe comenzar con http:// o https://");
+  const host = url.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".local") || host === "0.0.0.0" || host === "127.0.0.1" || host === "::1" || /^10\.|^192\.168\.|^169\.254\.|^172\.(1[6-9]|2\d|3[01])\./.test(host)) throw new Error("La URL debe ser una fuente pública");
+  return url;
+}
+
+async function sourceFromUrl(rawUrl: string, requestedName = ""): Promise<SourceDefinition> {
+  const url = publicHttpUrl(rawUrl.trim());
+  const result = await http.get(url.toString());
+  const rss = /(?:application|text)\/(?:rss\+xml|atom\+xml|xml)/i.test(result.contentType) || /<(?:rss|feed)(?:\s|>)/i.test(result.body.slice(0, 2000));
+  const finalUrl = publicHttpUrl(result.finalUrl);
+  const label = requestedName.trim() || finalUrl.hostname.replace(/^www\./, "").split(".").slice(0, -1).join(" ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return { id: `custom-${sha256(finalUrl.toString()).slice(0, 16)}`, name: label || finalUrl.hostname, type: rss ? "rss" : "web", url: finalUrl.toString(), region: "Argentina", priority: "media", enabled: true };
+}
+
 async function execute(reason: "manual" | "scheduled" | "catch-up"): Promise<void> {
   if (running) return;
   running = true;
@@ -121,6 +140,25 @@ const server = createServer(async (request, response) => {
       if (!columns.some((column) => ["nombre", "name", "names", "full_name", "display_name", "first_name"].includes(column))) return json(response, 400, { error: "No encuentro una columna de nombre compatible con Google, Outlook o Excel" });
       const result = await database.importContacts(rows);
       return json(response, 200, result);
+    }
+    if (request.url === "/api/sources" && request.method === "POST") {
+      const payload = JSON.parse((await readBody(request, 50_000)).toString("utf8")) as { url?: string; name?: string };
+      if (!payload.url?.trim()) return json(response, 400, { error: "Pegá la URL de la nueva fuente" });
+      try {
+        const source = await sourceFromUrl(payload.url, payload.name);
+        await database.addConfiguredSource(source);
+        if (!running) void execute("manual");
+        return json(response, 201, { source });
+      } catch (error) { return json(response, 400, { error: `No pudimos leer esa fuente: ${error instanceof Error ? error.message : String(error)}` }); }
+    }
+    if (request.url === "/api/private-intelligence" && request.method === "POST") {
+      const payload = JSON.parse((await readBody(request, 100_000)).toString("utf8")) as { company?: string; contractName?: string; informant?: string; confidence?: number; details?: string };
+      const company = payload.company?.trim() ?? ""; const details = payload.details?.trim() ?? ""; const confidence = Math.round(Number(payload.confidence));
+      if (!company || !details) return json(response, 400, { error: "Completá la empresa y la información conocida" });
+      if (!Number.isFinite(confidence) || confidence < 1 || confidence > 100) return json(response, 400, { error: "La certeza debe estar entre 1% y 100%" });
+      const result = await database.addPrivateIntelligence({ company, contractName: payload.contractName?.trim() ?? "", informant: payload.informant?.trim() ?? "", confidence, details });
+      if (!running) void execute("manual");
+      return json(response, 201, { ...result, message: "Información privada guardada y enviada a análisis" });
     }
     if (request.url === "/api/followup" && request.method === "POST") {
       const payload = JSON.parse((await readBody(request, 50_000)).toString("utf8")) as { eventKey?: string; status?: string; contactId?: number | null; notes?: string };

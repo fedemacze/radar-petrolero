@@ -36,7 +36,9 @@ export class RadarRunner {
     try {
       await this.deps.database.startRun(runId, this.deps.dryRun);
       const newArticles: Array<{ article: Article; id: number }> = [];
-      for (const source of SOURCES.filter((item) => item.enabled)) {
+      const configuredSources = await this.deps.database.listConfiguredSources();
+      const sources = [...new Map([...SOURCES, ...configuredSources].map((source) => [source.id, source])).values()];
+      for (const source of sources.filter((item) => item.enabled)) {
         summary.sourcesAttempted += 1;
         await this.deps.database.upsertSource(source);
         try {

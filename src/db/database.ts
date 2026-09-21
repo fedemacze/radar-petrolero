@@ -68,7 +68,7 @@ export class Database {
         FROM opportunities o JOIN events e ON e.event_key=o.event_key
         LEFT JOIN articles a ON a.id=e.primary_article_id
         ORDER BY o.analyzed_at DESC LIMIT 200`),
-      this.pool.query(`SELECT id,name,type,region,priority,last_success_at,last_error_at,last_error
+      this.pool.query(`SELECT id,name,type,url,region,priority,enabled,user_added,last_success_at,last_error_at,last_error
         FROM sources ORDER BY priority,name`),
       this.pool.query(`SELECT id,started_at,finished_at,status,dry_run,summary,error
         FROM runs ORDER BY started_at DESC LIMIT 30`),
@@ -85,7 +85,49 @@ export class Database {
     const contacts = await this.listContacts();
     const followups = await this.listFollowups();
     const mergedOpportunities = [...CURATED_OPPORTUNITIES, ...gatedOpportunities.filter((row) => !CURATED_OPPORTUNITIES.some((item) => item.event_key === row.event_key))];
-    return { opportunities: mergedOpportunities, contracts, contacts, followups, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+    const privateIntelligence = await this.listPrivateIntelligence();
+    return { opportunities: mergedOpportunities, contracts, contacts, followups, privateIntelligence, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+  }
+
+  async listConfiguredSources(): Promise<SourceDefinition[]> {
+    const result = await this.pool.query<SourceDefinition>(`SELECT id,name,type,url,region,priority,enabled FROM sources
+      WHERE user_added=true AND type IN ('rss','web','api') ORDER BY updated_at DESC`);
+    return result.rows;
+  }
+
+  async addConfiguredSource(source: SourceDefinition): Promise<void> {
+    await this.pool.query(`INSERT INTO sources(id,name,type,url,region,priority,enabled,user_added) VALUES($1,$2,$3,$4,$5,$6,true,true)
+      ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,type=EXCLUDED.type,url=EXCLUDED.url,region=EXCLUDED.region,priority=EXCLUDED.priority,enabled=true,user_added=true,updated_at=now()`,
+      [source.id, source.name, source.type, source.url, source.region, source.priority]);
+  }
+
+  async listPrivateIntelligence(): Promise<unknown[]> {
+    return (await this.pool.query(`SELECT p.id,p.company,p.contract_name,p.informant,p.confidence,p.details,p.created_at,
+        e.event_key,o.opportunity
+      FROM private_intelligence p
+      LEFT JOIN event_articles ea ON ea.article_id=p.article_id
+      LEFT JOIN events e ON e.event_key=ea.event_key
+      LEFT JOIN opportunities o ON o.event_key=e.event_key
+      ORDER BY p.created_at DESC LIMIT 100`)).rows;
+  }
+
+  async addPrivateIntelligence(input: { company: string; contractName: string; informant: string; confidence: number; details: string }): Promise<{ eventKey: string }> {
+    const now = new Date().toISOString();
+    const identity = sha256(`${input.company}|${input.contractName}|${input.details}|${now}`).slice(0, 24).toUpperCase();
+    const source: SourceDefinition = { id: "private-vermaz", name: "Inteligencia privada Vermaz", type: "web", url: "https://radar.vermaz.local/inteligencia", region: "Argentina", priority: "critica", enabled: false };
+    await this.pool.query(`INSERT INTO sources(id,name,type,url,region,priority,enabled,user_added) VALUES($1,$2,$3,$4,$5,$6,false,false)
+      ON CONFLICT(id) DO NOTHING`, [source.id, source.name, source.type, source.url, source.region, source.priority]);
+    const title = `${input.company} · ${input.contractName || "Señal comercial privada"}`;
+    const content = `INFORMACIÓN INTERNA DE VERMAZ. Empresa: ${input.company}. Contrato o servicio: ${input.contractName || "No especificado"}. Nivel de certeza informado: ${input.confidence}%. Detalle: ${input.details}`;
+    const article: Article = { sourceId: source.id, sourceName: source.name, title, url: `private-vermaz://${identity}`, publishedAt: now, content, retrievedAt: now, contentHash: sha256(content) };
+    const saved = await this.insertArticle(article, null);
+    if (saved.id === null) throw new Error("No se pudo guardar la información privada");
+    const eventKey = `RP-PRIV-${identity}`;
+    const prefilter: PrefilterResult = { accepted: true, score: Math.max(60, input.confidence), priority: input.confidence >= 85 ? "critica" : "alta", piresCompanies: [], targetCompanies: [input.company], criticalSignals: ["información privada"], projectSignals: [], serviceSignals: [input.contractName || "servicio informado"], earlySignals: [], displacementSignals: ["posible reemplazo de prestadora"], exclusionSignals: [], ageDays: 0 };
+    await this.upsertEvent({ eventKey, primaryArticle: article, articles: [article], prefilter }, [saved.id]);
+    await this.pool.query(`INSERT INTO private_intelligence(article_id,company,contract_name,informant,confidence,details) VALUES($1,$2,$3,$4,$5,$6)`,
+      [saved.id, input.company, input.contractName, input.informant, input.confidence, input.details]);
+    return { eventKey };
   }
 
   async listContacts(): Promise<unknown[]> {
@@ -190,7 +232,7 @@ export class Database {
     await this.pool.query("UPDATE runs SET finished_at=now(),status=$2,summary=$3,error=$4 WHERE id=$1", [runId, error ? "failed" : "completed", summary, error ?? null]);
   }
 
-  async insertArticle(article: Article, runId: string): Promise<{ id: number | null; inserted: boolean }> {
+  async insertArticle(article: Article, runId: string | null): Promise<{ id: number | null; inserted: boolean }> {
     const result = await this.pool.query<{ id: string }>(`INSERT INTO articles(source_id,source_name,title,url,normalized_url,published_at,content,content_hash,retrieved_at,first_run_id)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       ON CONFLICT DO NOTHING RETURNING id`, [article.sourceId, article.sourceName, article.title, article.url, normalizeUrl(article.url), article.publishedAt, article.content, article.contentHash, article.retrievedAt, runId]);

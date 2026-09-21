@@ -48,3 +48,19 @@ test("reduce el score de un proyecto futuro sin compra iniciada", () => {
   assert.equal(result.relevante, true);
   assert.equal(result.score_radar, 69);
 });
+
+test("admite inteligencia privada concreta sin exigir publicación pública", () => {
+  const privateArticle = article({
+    sourceId: "private-vermaz",
+    sourceName: "Inteligencia privada Vermaz",
+    title: "YPF · Mantenimiento de planta",
+    content: "La operadora no renovaría a la prestadora actual por fallas reiteradas del servicio.",
+  });
+  const privateEvent: EventCandidate = { eventKey: "RP-PRIV-TEST", primaryArticle: privateArticle, articles: [privateArticle], prefilter: new Prefilter().evaluate(privateArticle) };
+  const result = enforceCommercialGate(privateEvent, opportunity({
+    tipo_senal: "Posible sustitución de prestadora",
+    resumen_evidencia: "Información interna de Vermaz indica una posible no renovación del servicio.",
+    hechos_publicados: ["Dato interno: se informó disconformidad con la prestadora y una posible no renovación."],
+  }));
+  assert.equal(result.relevante, true);
+});
