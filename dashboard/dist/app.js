@@ -5,8 +5,10 @@ async function loadRealData() {
   const response = await fetch("/api/dashboard", { cache: "no-store" });
   if (!response.ok) throw new Error("No se pudieron cargar los datos del Radar");
   const data = await response.json();
-  const qualified = data.opportunities.filter((row) => row.opportunity.relevante && row.opportunity.score_radar >= 75);
-  opportunities.splice(0, opportunities.length, ...qualified.map((row, index) => {
+  const relevant = data.opportunities.filter((row) => row.opportunity.relevante);
+  const qualified = relevant.filter((row) => row.opportunity.score_radar >= 75);
+  const prioritized = relevant.filter((row) => row.opportunity.score_radar >= 75 || row.opportunity.empresa_prioritaria);
+  opportunities.splice(0, opportunities.length, ...prioritized.map((row, index) => {
     const value = row.opportunity;
     return {
       id: index + 1,
@@ -16,14 +18,15 @@ async function loadRealData() {
       piress: value.empresa_prioritaria ? safe(value.empresa) : "", summary: safe(value.analisis_ia || value.resumen_evidencia),
       evidence: safe((value.hechos_publicados || []).join(" · ") || value.resumen_evidencia),
       services: (value.servicios_vermaz || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
+      sourceUrl: row.source_url,
     };
   }));
   selected = opportunities[0];
   const metricValues = document.querySelectorAll(".metric-value");
-  metricValues[0].textContent = String(qualified.length);
-  metricValues[1].textContent = String(qualified.filter((row) => row.opportunity.score_radar >= 90).length);
+  metricValues[0].textContent = String(prioritized.length);
+  metricValues[1].textContent = String(qualified.length);
   metricValues[2].textContent = String(data.opportunities.length);
-  metricValues[3].textContent = String(qualified.filter((row) => row.opportunity.empresa_prioritaria).length);
+  metricValues[3].textContent = String(relevant.filter((row) => row.opportunity.empresa_prioritaria).length);
   const lastRun = data.runs[0];
   document.querySelector(".section-lead p").textContent = `Última ejecución: ${dateTime(lastRun?.finished_at)} · ${lastRun?.summary?.sourcesSucceeded ?? 0} fuentes procesadas`;
   const badge = document.querySelector(".demo-badge");
