@@ -118,7 +118,10 @@ CREATE TABLE IF NOT EXISTS opportunity_followups (
   status text NOT NULL CHECK(status IN ('pending','contacted','replied','discarded')),
   contact_id bigint REFERENCES contacts(id) ON DELETE SET NULL,
   notes text NOT NULL DEFAULT '',
+  contacted_at timestamptz,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS contacted_at timestamptz;
 
 CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts(normalized_company);

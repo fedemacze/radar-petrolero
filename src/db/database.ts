@@ -94,7 +94,7 @@ export class Database {
   }
 
   async listFollowups(): Promise<unknown[]> {
-    return (await this.pool.query("SELECT event_key,status,contact_id,notes,updated_at FROM opportunity_followups")).rows;
+    return (await this.pool.query("SELECT event_key,status,contact_id,notes,contacted_at,updated_at FROM opportunity_followups")).rows;
   }
 
   async importContacts(rows: Array<Record<string, string>>, source = "csv"): Promise<{ imported: number; skipped: number }> {
@@ -124,8 +124,9 @@ export class Database {
 
   async saveFollowup(eventKey: string, status: string, contactId: number | null, notes: string): Promise<void> {
     if (!['pending','contacted','replied','discarded'].includes(status)) throw new Error("Estado comercial inválido");
-    await this.pool.query(`INSERT INTO opportunity_followups(event_key,status,contact_id,notes) VALUES($1,$2,$3,$4)
-      ON CONFLICT(event_key) DO UPDATE SET status=EXCLUDED.status,contact_id=EXCLUDED.contact_id,notes=EXCLUDED.notes,updated_at=now()`, [eventKey, status, contactId, notes.slice(0, 4000)]);
+    await this.pool.query(`INSERT INTO opportunity_followups(event_key,status,contact_id,notes,contacted_at) VALUES($1,$2,$3,$4,CASE WHEN $2='contacted' THEN now() ELSE NULL END)
+      ON CONFLICT(event_key) DO UPDATE SET status=EXCLUDED.status,contact_id=EXCLUDED.contact_id,notes=EXCLUDED.notes,
+        contacted_at=CASE WHEN EXCLUDED.status='contacted' THEN now() ELSE opportunity_followups.contacted_at END,updated_at=now()`, [eventKey, status, contactId, notes.slice(0, 4000)]);
   }
 
   async findContractCandidates(limit = 4): Promise<Array<{ id: number; article: Article }>> {

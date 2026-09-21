@@ -1,6 +1,6 @@
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const dateTime = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value)) : "Sin ejecuciones";
-document.querySelector("#dashboard-version").textContent = "Panel v4 · agenda compartida";
+document.querySelector("#dashboard-version").textContent = "Panel v5 · seguimientos comerciales";
 const piresCompany = (value) => {
   const name = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (/(^| )sga( |$)/.test(name)) return "SGA";
@@ -44,7 +44,8 @@ async function loadRealData() {
   const metricValues = document.querySelectorAll(".metric-value");
   metricValues[0].textContent = String(contracts.length);
   metricValues[1].textContent = String(qualified.length);
-  metricValues[2].textContent = String(data.opportunities.length);
+  const activeFollowups = followups.filter((item) => ["contacted", "replied"].includes(item.status));
+  metricValues[2].textContent = String(activeFollowups.length);
   metricValues[3].textContent = String(piresOpportunities.length);
   const lastRun = data.runs[0];
   document.querySelector(".section-lead p").textContent = `Última ejecución: ${dateTime(lastRun?.finished_at)} · ${lastRun?.summary?.sourcesSucceeded ?? 0} fuentes procesadas`;
@@ -63,10 +64,23 @@ async function loadRealData() {
   const openContracts = () => document.querySelector('.nav button[data-view="contracts"]').click();
   contractsSummary.onclick = openContracts;
   contractsSummary.onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openContracts(); } };
+  const followupsSummary = document.querySelector("#followups-summary");
+  const openFollowups = () => document.querySelector('.nav button[data-view="followups"]').click();
+  followupsSummary.onclick = openFollowups;
+  followupsSummary.onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openFollowups(); } };
   document.querySelector("#contact-body").innerHTML = contacts.map((contact) => `<tr><td><div class="company">${safe(contact.name)}</div></td><td><div>${safe(contact.company)}</div><div class="location">${safe(contact.role)}</div></td><td>${contact.email ? `<a href="mailto:${safe(contact.email)}">${safe(contact.email)}</a>` : "—"}</td><td>${safe(contact.phone || "—")}</td><td>${contact.linkedin_url ? `<a href="${safe(contact.linkedin_url)}" target="_blank" rel="noopener">Abrir perfil</a>` : "—"}</td><td>${safe(contact.internal_owner || "—")}</td></tr>`).join("");
   document.querySelector("#contact-count").textContent = `${contacts.length} contacto${contacts.length === 1 ? "" : "s"}`;
   document.querySelector("#contact-empty").hidden = contacts.length > 0;
   const normalizeCompany = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(s a|srl|sociedad anonima|ltd|limited|energia|energy)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const followupLabel = (status) => ({ pending: "Pendiente", contacted: "Contactado", replied: "Respondió", discarded: "Descartado" })[status] || status;
+  const renderFollowups = () => {
+    const active = followups.filter((item) => ["contacted", "replied"].includes(item.status)).map((item) => ({ item, opportunity: opportunities.find((value) => value.eventKey === item.event_key) })).filter((entry) => entry.opportunity);
+    document.querySelector("#followup-body").innerHTML = active.map(({ item, opportunity }) => `<tr><td><div class="company">${opportunity.company}</div><div class="location">${opportunity.project} · ${opportunity.location}</div></td><td class="signal">${opportunity.signal}</td><td><span class="tag ${item.status === "replied" ? "high" : "contact"}">${followupLabel(item.status)}</span></td><td>${dateTime(item.contacted_at || item.updated_at)}</td><td><button class="secondary" onclick="discardFollowup('${safe(opportunity.eventKey)}')">Descartar seguimiento</button></td></tr>`).join("");
+    document.querySelector("#followup-count").textContent = `${active.length} seguimiento${active.length === 1 ? "" : "s"}`;
+    document.querySelector("#followup-empty").hidden = active.length > 0;
+    metricValues[2].textContent = String(active.length);
+  };
+  renderFollowups();
   const originalRenderDetail = renderDetail;
   renderDetail = function () {
     originalRenderDetail();
@@ -79,9 +93,12 @@ async function loadRealData() {
     const cards = ordered.map((contact) => `<div style="padding:9px 0;border-bottom:1px solid #edf1f3"><strong style="font-size:.76rem">${safe(contact.name)}</strong>${exact.includes(contact) ? '<span class="tag high" style="margin-left:6px">Coincidencia</span>' : ''}<div class="location">${safe(contact.role || "Sin cargo")} · ${safe(contact.company)}</div><div style="margin-top:5px">${contact.email ? `<a href="mailto:${safe(contact.email)}">${safe(contact.email)}</a>` : ""}${contact.linkedin_url ? ` · <a href="${safe(contact.linkedin_url)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div></div>`).join("");
     const linkedinSearch = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${selected.targetRole || "Gerente de Operaciones"} ${selected.company}`)}`;
     const current = followups.find((item) => item.event_key === selected.eventKey);
-    detail.querySelector(".detail-body").insertAdjacentHTML("beforeend", `<div class="detail-section"><h4>Contactos disponibles</h4>${cards || '<p>No tenés contactos conocidos en esta empresa.</p>'}<div class="detail-footer"><a class="secondary" href="${linkedinSearch}" target="_blank" rel="noopener">Buscar perfil en LinkedIn</a></div></div><div class="detail-section"><h4>Seguimiento comercial</h4><div class="service-list"><button class="secondary" onclick="saveFollowup('pending')">Pendiente</button><button class="secondary" onclick="saveFollowup('contacted')">Contactado</button><button class="secondary" onclick="saveFollowup('replied')">Respondió</button><button class="secondary" onclick="saveFollowup('discarded')">Descartado</button></div><p class="location" style="margin-top:8px">Estado actual: ${safe(current?.status || "Sin registrar")}</p></div>`);
+    const stateButton = (status, label) => `<button class="${current?.status === status ? "primary" : "secondary"}" onclick="saveFollowup('${status}')">${label}</button>`;
+    detail.querySelector(".detail-body").insertAdjacentHTML("beforeend", `<div class="detail-section"><h4>Contactos disponibles</h4>${cards || '<p>No tenés contactos conocidos en esta empresa.</p>'}<div class="detail-footer"><a class="secondary" href="${linkedinSearch}" target="_blank" rel="noopener">Buscar perfil en LinkedIn</a></div></div><div class="detail-section"><h4>Seguimiento comercial</h4><div class="service-list">${stateButton("pending", "Pendiente")}${stateButton("contacted", "Contactado")}${stateButton("replied", "Respondió")}${stateButton("discarded", "Descartado")}</div><p class="location" style="margin-top:8px">Estado actual: ${followupLabel(current?.status || "Sin registrar")}${current?.contacted_at ? ` · Último contacto: ${dateTime(current.contacted_at)}` : ""}</p></div>`);
   };
-  window.saveFollowup = async (status) => { if (!selected?.eventKey) return; await fetch("/api/followup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventKey: selected.eventKey, status }) }); showToast("Seguimiento actualizado"); setTimeout(() => location.reload(), 600); };
+  const persistFollowup = async (eventKey, status) => { const result = await fetch("/api/followup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventKey, status }) }); if (!result.ok) throw new Error("No se pudo actualizar el seguimiento"); const existing = followups.find((item) => item.event_key === eventKey); const now = new Date().toISOString(); if (existing) { existing.status = status; existing.updated_at = now; if (status === "contacted") existing.contacted_at = now; } else followups.push({ event_key: eventKey, status, updated_at: now, contacted_at: status === "contacted" ? now : null }); };
+  window.saveFollowup = async (status) => { if (!selected?.eventKey) return; try { await persistFollowup(selected.eventKey, status); renderDetail(); renderFollowups(); showToast("Seguimiento actualizado"); } catch (error) { showToast(error.message); } };
+  window.discardFollowup = async (eventKey) => { try { await persistFollowup(eventKey, "discarded"); renderFollowups(); showToast("Seguimiento descartado"); } catch (error) { showToast(error.message); } };
   const fileInput = document.querySelector("#contact-file");
   document.querySelector("#import-contacts").onclick = () => fileInput.click();
   fileInput.onchange = async () => { const file = fileInput.files?.[0]; if (!file) return; try { showToast("Importando contactos…"); const result = await fetch("/api/contacts/import", { method: "POST", headers: { "x-file-name": encodeURIComponent(file.name), "content-type": "text/csv; charset=utf-8" }, body: file }); const payload = await result.json(); if (!result.ok) return showToast(payload.error || "No se pudo importar"); showToast(`${payload.imported} importados · ${payload.skipped} omitidos`); setTimeout(() => location.reload(), 1200); } catch (error) { showToast(`No se pudo leer el archivo: ${error.message}`); } finally { fileInput.value = ""; } };
