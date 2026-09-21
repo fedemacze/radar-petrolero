@@ -74,7 +74,7 @@
         <section class="view" id="view-contacts">
           <div class="section-lead"><div><h2>Agenda compartida</h2><p>Visible para todas las personas con acceso a Radar Vermaz</p></div></div>
           <section class="panel">
-            <div class="panel-head"><div><h3>Contactos comerciales</h3><span id="contact-count">0 contactos</span></div><div class="filters"><input id="contact-file" type="file" accept=".csv,text/csv" hidden><button class="run-button" id="import-contacts">Importar CSV</button></div></div>
+            <div class="panel-head"><div><h3>Contactos comerciales</h3><span id="contact-count">0 contactos</span></div><div class="filters"><input id="contact-file" type="file" hidden><button class="run-button" id="import-contacts">Seleccionar CSV</button></div></div>
             <div style="padding:12px 18px;background:#f8fafb;border-bottom:1px solid var(--line);font-size:.73rem;color:var(--muted)">Columnas: nombre, empresa, cargo, email, telefono, linkedin, responsable y ultima_actualizacion. Desde Excel podés guardar como CSV.</div>
             <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Empresa / cargo</th><th>Email</th><th>Teléfono</th><th>LinkedIn</th><th>Responsable</th></tr></thead><tbody id="contact-body"></tbody></table></div>
             <div class="empty" id="contact-empty">Todavía no hay contactos cargados.</div>
@@ -110,6 +110,6 @@
     document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>{document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.querySelector(`#view-${button.dataset.view}`).classList.add("active");document.querySelector("#page-title").textContent={opportunities:"Oportunidades detectadas",contracts:"Contratos por vencer",contacts:"Agenda compartida",sources:"Fuentes monitoreadas",activity:"Actividad del Radar"}[button.dataset.view];document.querySelector("#sidebar").classList.remove("open")});
     document.querySelector("#mobile-menu").onclick=()=>document.querySelector("#sidebar").classList.toggle("open");document.querySelector("#run-demo").onclick=()=>showToast("Demo ejecutada · 3 oportunidades calificadas");renderTable();renderDetail();
   </script>
-  <script src="/app.js?v=contacts-v1" defer></script>
+  <script src="/app.js?v=contacts-v2" defer></script>
 </body>
 </html>

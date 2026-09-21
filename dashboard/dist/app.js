@@ -84,7 +84,7 @@ async function loadRealData() {
   window.saveFollowup = async (status) => { if (!selected?.eventKey) return; await fetch("/api/followup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventKey: selected.eventKey, status }) }); showToast("Seguimiento actualizado"); setTimeout(() => location.reload(), 600); };
   const fileInput = document.querySelector("#contact-file");
   document.querySelector("#import-contacts").onclick = () => fileInput.click();
-  fileInput.onchange = async () => { const file = fileInput.files?.[0]; if (!file) return; const result = await fetch("/api/contacts/import", { method: "POST", headers: { "x-file-name": file.name }, body: file }); const payload = await result.json(); if (!result.ok) return showToast(payload.error || "No se pudo importar"); showToast(`${payload.imported} contactos importados`); setTimeout(() => location.reload(), 900); };
+  fileInput.onchange = async () => { const file = fileInput.files?.[0]; if (!file) return; try { showToast("Importando contactos…"); const result = await fetch("/api/contacts/import", { method: "POST", headers: { "x-file-name": encodeURIComponent(file.name), "content-type": "text/csv; charset=utf-8" }, body: file }); const payload = await result.json(); if (!result.ok) return showToast(payload.error || "No se pudo importar"); showToast(`${payload.imported} importados · ${payload.skipped} omitidos`); setTimeout(() => location.reload(), 1200); } catch (error) { showToast(`No se pudo leer el archivo: ${error.message}`); } finally { fileInput.value = ""; } };
   if (opportunities.length) { renderTable(); renderDetail(); }
   else {
     document.querySelector("#opportunity-body").innerHTML = "";

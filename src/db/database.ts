@@ -108,10 +108,12 @@ export class Database {
       const linkedin = (row.linkedin || row.linkedin_url || "").trim();
       if (!name || (!company && !email && !phone)) { skipped += 1; continue; }
       const sourceKey = email || sha256(`${normalizeText(name)}|${normalizeText(company)}|${normalizeText(role)}`);
+      const rawUpdatedAt = (row.ultima_actualizacion || row.updated_at || "").trim();
+      const sourceUpdatedAt = rawUpdatedAt && !Number.isNaN(Date.parse(rawUpdatedAt)) ? new Date(rawUpdatedAt).toISOString() : null;
       await this.pool.query(`INSERT INTO contacts(name,company,normalized_company,role,email,phone,linkedin_url,internal_owner,source,source_key,source_updated_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
         ON CONFLICT(source,source_key) DO UPDATE SET name=EXCLUDED.name,company=EXCLUDED.company,normalized_company=EXCLUDED.normalized_company,role=EXCLUDED.role,email=EXCLUDED.email,phone=EXCLUDED.phone,linkedin_url=EXCLUDED.linkedin_url,internal_owner=EXCLUDED.internal_owner,source_updated_at=EXCLUDED.source_updated_at,updated_at=now()`,
-        [name, company, normalizeText(company), role, email, phone, linkedin, (row.responsable || row.internal_owner || "").trim(), source, sourceKey, row.ultima_actualizacion || row.updated_at || null]);
+        [name, company, normalizeText(company), role, email, phone, linkedin, (row.responsable || row.internal_owner || "").trim(), source, sourceKey, sourceUpdatedAt]);
       imported += 1;
     }
     return { imported, skipped };

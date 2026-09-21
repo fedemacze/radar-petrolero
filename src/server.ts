@@ -113,9 +113,13 @@ const server = createServer(async (request, response) => {
     }
     if (request.url === "/api/dashboard" && request.method === "GET") return json(response, 200, { ...(await database.getDashboardSnapshot()), running, dryRun: effectiveDryRun, attioStatus });
     if (request.url === "/api/contacts/import" && request.method === "POST") {
-      const filename = String(request.headers["x-file-name"] ?? "contactos.csv");
-      if (!filename.toLowerCase().endsWith(".csv")) return json(response, 415, { error: "Por ahora exportá el Excel como CSV para importarlo" });
-      const result = await database.importContacts(parseCsv((await readBody(request)).toString("utf8").replace(/^\uFEFF/, "")));
+      const content = (await readBody(request)).toString("utf8").replace(/^\uFEFF/, "");
+      if (content.includes("PK\u0003\u0004")) return json(response, 415, { error: "Ese archivo es Excel (.xlsx). Abrilo y elegí Guardar como → CSV UTF-8" });
+      const rows = parseCsv(content);
+      if (!rows.length) return json(response, 400, { error: "El archivo está vacío o no tiene filas de contactos" });
+      const columns = Object.keys(rows[0] ?? {});
+      if (!columns.some((column) => ["nombre", "name"].includes(column))) return json(response, 400, { error: "No encuentro la columna 'nombre' en la primera fila" });
+      const result = await database.importContacts(rows);
       return json(response, 200, result);
     }
     if (request.url === "/api/followup" && request.method === "POST") {
