@@ -1,6 +1,6 @@
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const dateTime = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value)) : "Sin ejecuciones";
-document.querySelector("#dashboard-version").textContent = "Panel v3 · contratos por vencer";
+document.querySelector("#dashboard-version").textContent = "Panel v4 · agenda compartida";
 const piresCompany = (value) => {
   const name = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (/(^| )sga( |$)/.test(name)) return "SGA";
@@ -14,6 +14,8 @@ async function loadRealData() {
   const response = await fetch("/api/dashboard", { cache: "no-store" });
   if (!response.ok) throw new Error("No se pudieron cargar los datos del Radar");
   const data = await response.json();
+  const contacts = data.contacts || [];
+  const followups = data.followups || [];
   const contractBody = document.querySelector("#contract-body");
   const contracts = data.contracts || [];
   const shortDate = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${String(value).slice(0,10)}T12:00:00Z`)) : "Sin dato";
@@ -27,13 +29,14 @@ async function loadRealData() {
   opportunities.splice(0, opportunities.length, ...prioritized.map((row, index) => {
     const value = row.opportunity;
     return {
-      id: index + 1,
+      id: index + 1, eventKey: row.event_key,
       company: safe(value.empresa || "Empresa sin identificar"), project: safe(value.proyecto || row.title),
       signal: safe(value.tipo_senal), score: value.score_radar, priority: safe(value.prioridad), stage: safe(value.etapa_temporal),
       action: safe(value.tipo_accion), location: safe(value.provincia || value.cuenca || "Argentina"),
       piress: safe(piresCompany(value.empresa)), summary: safe(value.analisis_ia || value.resumen_evidencia),
       evidence: safe((value.hechos_publicados || []).join(" · ") || value.resumen_evidencia),
       services: (value.servicios_vermaz || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
+      targetRole: safe(value.cargo_objetivo || value.area_objetivo),
       sourceUrl: row.source_url,
     };
   }));
@@ -60,6 +63,28 @@ async function loadRealData() {
   const openContracts = () => document.querySelector('.nav button[data-view="contracts"]').click();
   contractsSummary.onclick = openContracts;
   contractsSummary.onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openContracts(); } };
+  document.querySelector("#contact-body").innerHTML = contacts.map((contact) => `<tr><td><div class="company">${safe(contact.name)}</div></td><td><div>${safe(contact.company)}</div><div class="location">${safe(contact.role)}</div></td><td>${contact.email ? `<a href="mailto:${safe(contact.email)}">${safe(contact.email)}</a>` : "—"}</td><td>${safe(contact.phone || "—")}</td><td>${contact.linkedin_url ? `<a href="${safe(contact.linkedin_url)}" target="_blank" rel="noopener">Abrir perfil</a>` : "—"}</td><td>${safe(contact.internal_owner || "—")}</td></tr>`).join("");
+  document.querySelector("#contact-count").textContent = `${contacts.length} contacto${contacts.length === 1 ? "" : "s"}`;
+  document.querySelector("#contact-empty").hidden = contacts.length > 0;
+  const normalizeCompany = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(s a|srl|sociedad anonima|ltd|limited|energia|energy)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const originalRenderDetail = renderDetail;
+  renderDetail = function () {
+    originalRenderDetail();
+    if (!selected) return;
+    const company = normalizeCompany(selected.company);
+    const sameCompany = contacts.filter((contact) => { const candidate = normalizeCompany(contact.company); return candidate && company && (candidate === company || candidate.includes(company) || company.includes(candidate)); });
+    const roleWords = String(selected.targetRole || "").toLowerCase().split(/\s+/).filter((word) => word.length > 4);
+    const exact = sameCompany.filter((contact) => roleWords.some((word) => String(contact.role || "").toLowerCase().includes(word)));
+    const ordered = [...exact, ...sameCompany.filter((contact) => !exact.includes(contact))].slice(0, 5);
+    const cards = ordered.map((contact) => `<div style="padding:9px 0;border-bottom:1px solid #edf1f3"><strong style="font-size:.76rem">${safe(contact.name)}</strong>${exact.includes(contact) ? '<span class="tag high" style="margin-left:6px">Coincidencia</span>' : ''}<div class="location">${safe(contact.role || "Sin cargo")} · ${safe(contact.company)}</div><div style="margin-top:5px">${contact.email ? `<a href="mailto:${safe(contact.email)}">${safe(contact.email)}</a>` : ""}${contact.linkedin_url ? ` · <a href="${safe(contact.linkedin_url)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div></div>`).join("");
+    const linkedinSearch = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${selected.targetRole || "Gerente de Operaciones"} ${selected.company}`)}`;
+    const current = followups.find((item) => item.event_key === selected.eventKey);
+    detail.querySelector(".detail-body").insertAdjacentHTML("beforeend", `<div class="detail-section"><h4>Contactos disponibles</h4>${cards || '<p>No tenés contactos conocidos en esta empresa.</p>'}<div class="detail-footer"><a class="secondary" href="${linkedinSearch}" target="_blank" rel="noopener">Buscar perfil en LinkedIn</a></div></div><div class="detail-section"><h4>Seguimiento comercial</h4><div class="service-list"><button class="secondary" onclick="saveFollowup('pending')">Pendiente</button><button class="secondary" onclick="saveFollowup('contacted')">Contactado</button><button class="secondary" onclick="saveFollowup('replied')">Respondió</button><button class="secondary" onclick="saveFollowup('discarded')">Descartado</button></div><p class="location" style="margin-top:8px">Estado actual: ${safe(current?.status || "Sin registrar")}</p></div>`);
+  };
+  window.saveFollowup = async (status) => { if (!selected?.eventKey) return; await fetch("/api/followup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventKey: selected.eventKey, status }) }); showToast("Seguimiento actualizado"); setTimeout(() => location.reload(), 600); };
+  const fileInput = document.querySelector("#contact-file");
+  document.querySelector("#import-contacts").onclick = () => fileInput.click();
+  fileInput.onchange = async () => { const file = fileInput.files?.[0]; if (!file) return; const result = await fetch("/api/contacts/import", { method: "POST", headers: { "x-file-name": file.name }, body: file }); const payload = await result.json(); if (!result.ok) return showToast(payload.error || "No se pudo importar"); showToast(`${payload.imported} contactos importados`); setTimeout(() => location.reload(), 900); };
   if (opportunities.length) { renderTable(); renderDetail(); }
   else {
     document.querySelector("#opportunity-body").innerHTML = "";

@@ -94,3 +94,31 @@ CREATE TABLE IF NOT EXISTS contract_reviews (
 );
 
 CREATE INDEX IF NOT EXISTS contract_reviews_expiry_idx ON contract_reviews(base_end_date, option_end_date);
+
+CREATE TABLE IF NOT EXISTS contacts (
+  id bigserial PRIMARY KEY,
+  name text NOT NULL,
+  company text NOT NULL DEFAULT '',
+  normalized_company text NOT NULL DEFAULT '',
+  role text NOT NULL DEFAULT '',
+  email text NOT NULL DEFAULT '',
+  phone text NOT NULL DEFAULT '',
+  linkedin_url text NOT NULL DEFAULT '',
+  internal_owner text NOT NULL DEFAULT '',
+  source text NOT NULL DEFAULT 'csv',
+  source_key text NOT NULL,
+  source_updated_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(source, source_key)
+);
+
+CREATE TABLE IF NOT EXISTS opportunity_followups (
+  event_key text PRIMARY KEY,
+  status text NOT NULL CHECK(status IN ('pending','contacted','replied','discarded')),
+  contact_id bigint REFERENCES contacts(id) ON DELETE SET NULL,
+  notes text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts(normalized_company);

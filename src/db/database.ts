@@ -4,6 +4,7 @@ import pg from "pg";
 import type { AnalysisMetadata, Article, ContractFinding, EventCandidate, Opportunity, PrefilterResult, RunSummary, SourceDefinition } from "../domain/types.js";
 import type { ExistingEventFingerprint } from "../pipeline/deduplicator.js";
 import { normalizeUrl } from "../lib/text.js";
+import { normalizeText, sha256 } from "../lib/text.js";
 import { enforceCommercialGate } from "../pipeline/commercial-gate.js";
 import { CURATED_CONTRACTS, CURATED_OPPORTUNITIES } from "../config/curated-intelligence.js";
 
@@ -81,8 +82,45 @@ export class Database {
       return { ...row, opportunity: enforceCommercialGate(event, row.opportunity as Opportunity) };
     });
     const contracts = [...CURATED_CONTRACTS, ...await this.getExpiringContracts()];
+    const contacts = await this.listContacts();
+    const followups = await this.listFollowups();
     const mergedOpportunities = [...CURATED_OPPORTUNITIES, ...gatedOpportunities.filter((row) => !CURATED_OPPORTUNITIES.some((item) => item.event_key === row.event_key))];
-    return { opportunities: mergedOpportunities, contracts, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+    return { opportunities: mergedOpportunities, contracts, contacts, followups, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+  }
+
+  async listContacts(): Promise<unknown[]> {
+    return (await this.pool.query(`SELECT id,name,company,role,email,phone,linkedin_url,internal_owner,source,source_updated_at,updated_at
+      FROM contacts ORDER BY company,name`)).rows;
+  }
+
+  async listFollowups(): Promise<unknown[]> {
+    return (await this.pool.query("SELECT event_key,status,contact_id,notes,updated_at FROM opportunity_followups")).rows;
+  }
+
+  async importContacts(rows: Array<Record<string, string>>, source = "csv"): Promise<{ imported: number; skipped: number }> {
+    let imported = 0; let skipped = 0;
+    for (const row of rows) {
+      const name = (row.nombre || row.name || "").trim();
+      const company = (row.empresa || row.company || row.organizacion || "").trim();
+      const role = (row.cargo || row.role || row.puesto || "").trim();
+      const email = (row.email || row.correo || "").trim().toLowerCase();
+      const phone = (row.telefono || row.phone || row.celular || "").trim();
+      const linkedin = (row.linkedin || row.linkedin_url || "").trim();
+      if (!name || (!company && !email && !phone)) { skipped += 1; continue; }
+      const sourceKey = email || sha256(`${normalizeText(name)}|${normalizeText(company)}|${normalizeText(role)}`);
+      await this.pool.query(`INSERT INTO contacts(name,company,normalized_company,role,email,phone,linkedin_url,internal_owner,source,source_key,source_updated_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        ON CONFLICT(source,source_key) DO UPDATE SET name=EXCLUDED.name,company=EXCLUDED.company,normalized_company=EXCLUDED.normalized_company,role=EXCLUDED.role,email=EXCLUDED.email,phone=EXCLUDED.phone,linkedin_url=EXCLUDED.linkedin_url,internal_owner=EXCLUDED.internal_owner,source_updated_at=EXCLUDED.source_updated_at,updated_at=now()`,
+        [name, company, normalizeText(company), role, email, phone, linkedin, (row.responsable || row.internal_owner || "").trim(), source, sourceKey, row.ultima_actualizacion || row.updated_at || null]);
+      imported += 1;
+    }
+    return { imported, skipped };
+  }
+
+  async saveFollowup(eventKey: string, status: string, contactId: number | null, notes: string): Promise<void> {
+    if (!['pending','contacted','replied','discarded'].includes(status)) throw new Error("Estado comercial inválido");
+    await this.pool.query(`INSERT INTO opportunity_followups(event_key,status,contact_id,notes) VALUES($1,$2,$3,$4)
+      ON CONFLICT(event_key) DO UPDATE SET status=EXCLUDED.status,contact_id=EXCLUDED.contact_id,notes=EXCLUDED.notes,updated_at=now()`, [eventKey, status, contactId, notes.slice(0, 4000)]);
   }
 
   async findContractCandidates(limit = 4): Promise<Array<{ id: number; article: Article }>> {

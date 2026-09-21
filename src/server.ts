@@ -50,6 +50,26 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.end(JSON.stringify(body));
 }
 
+async function readBody(request: IncomingMessage, maxBytes = 5_000_000): Promise<Buffer> {
+  const chunks: Buffer[] = []; let size = 0;
+  for await (const chunk of request) { const part = Buffer.from(chunk); size += part.length; if (size > maxBytes) throw new Error("El archivo supera el límite de 5 MB"); chunks.push(part); }
+  return Buffer.concat(chunks);
+}
+
+function parseCsv(input: string): Array<Record<string, string>> {
+  const lines: string[][] = []; let row: string[] = []; let field = ""; let quoted = false;
+  for (let index = 0; index < input.length; index += 1) { const char = input[index]!; const next = input[index + 1];
+    if (char === '"' && quoted && next === '"') { field += '"'; index += 1; }
+    else if (char === '"') quoted = !quoted;
+    else if ((char === ',' || char === ';') && !quoted) { row.push(field); field = ""; }
+    else if ((char === '\n' || char === '\r') && !quoted) { if (char === '\r' && next === '\n') index += 1; row.push(field); if (row.some((value) => value.trim())) lines.push(row); row = []; field = ""; }
+    else field += char;
+  }
+  row.push(field); if (row.some((value) => value.trim())) lines.push(row);
+  const headers = (lines.shift() ?? []).map((value) => value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_"));
+  return lines.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index]?.trim() ?? ""])));
+}
+
 async function execute(reason: "manual" | "scheduled" | "catch-up"): Promise<void> {
   if (running) return;
   running = true;
@@ -92,6 +112,18 @@ const server = createServer(async (request, response) => {
       return response.end("Acceso protegido");
     }
     if (request.url === "/api/dashboard" && request.method === "GET") return json(response, 200, { ...(await database.getDashboardSnapshot()), running, dryRun: effectiveDryRun, attioStatus });
+    if (request.url === "/api/contacts/import" && request.method === "POST") {
+      const filename = String(request.headers["x-file-name"] ?? "contactos.csv");
+      if (!filename.toLowerCase().endsWith(".csv")) return json(response, 415, { error: "Por ahora exportá el Excel como CSV para importarlo" });
+      const result = await database.importContacts(parseCsv((await readBody(request)).toString("utf8").replace(/^\uFEFF/, "")));
+      return json(response, 200, result);
+    }
+    if (request.url === "/api/followup" && request.method === "POST") {
+      const payload = JSON.parse((await readBody(request, 50_000)).toString("utf8")) as { eventKey?: string; status?: string; contactId?: number | null; notes?: string };
+      if (!payload.eventKey || !payload.status) return json(response, 400, { error: "Faltan datos del seguimiento" });
+      await database.saveFollowup(payload.eventKey, payload.status, payload.contactId ?? null, payload.notes ?? "");
+      return json(response, 200, { ok: true });
+    }
     if (request.url === "/api/run" && request.method === "POST") {
       if (running) return json(response, 409, { ok: false, message: "Ya hay una ejecución en curso" });
       void execute("manual");

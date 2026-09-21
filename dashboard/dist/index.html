@@ -29,6 +29,7 @@
       <nav class="nav" aria-label="Navegación principal">
         <button class="active" data-view="opportunities"><span class="icon">◉</span>Oportunidades</button>
         <button data-view="contracts"><span class="icon">⌛</span>Contratos por vencer</button>
+        <button data-view="contacts"><span class="icon">◎</span>Contactos</button>
         <button data-view="sources"><span class="icon">⌁</span>Fuentes</button>
         <button data-view="activity"><span class="icon">↻</span>Actividad</button>
       </nav>
@@ -70,6 +71,15 @@
           </section>
           <div class="panel" style="margin-top:18px;padding:18px"><strong style="font-size:.82rem">Cómo leer las fechas</strong><p style="font-size:.76rem;color:var(--muted);margin:7px 0 0">“Fin base” usa el plazo publicado o estima 24 meses desde la adjudicación/inicio. “Con prórroga +1” agrega 12 meses cuando la extensión no está confirmada. Abrí la fuente para validar antes de una acción comercial.</p></div>
         </section>
+        <section class="view" id="view-contacts">
+          <div class="section-lead"><div><h2>Agenda compartida</h2><p>Visible para todas las personas con acceso a Radar Vermaz</p></div></div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>Contactos comerciales</h3><span id="contact-count">0 contactos</span></div><div class="filters"><input id="contact-file" type="file" accept=".csv,text/csv" hidden><button class="run-button" id="import-contacts">Importar CSV</button></div></div>
+            <div style="padding:12px 18px;background:#f8fafb;border-bottom:1px solid var(--line);font-size:.73rem;color:var(--muted)">Columnas: nombre, empresa, cargo, email, telefono, linkedin, responsable y ultima_actualizacion. Desde Excel podés guardar como CSV.</div>
+            <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Empresa / cargo</th><th>Email</th><th>Teléfono</th><th>LinkedIn</th><th>Responsable</th></tr></thead><tbody id="contact-body"></tbody></table></div>
+            <div class="empty" id="contact-empty">Todavía no hay contactos cargados.</div>
+          </section>
+        </section>
         <section class="view" id="view-sources"><div class="section-lead"><div><h2>Fuentes monitoreadas</h2><p>Medios, organismos y operadoras que alimentan el Radar</p></div></div><div class="source-grid" id="source-grid"></div></section>
         <section class="view" id="view-activity"><div class="section-lead"><div><h2>Actividad del Radar</h2><p>Trazabilidad de ejecuciones, volumen y resultados</p></div></div><div class="activity" id="activity-list"></div></section>
       </div>
@@ -97,9 +107,9 @@
     document.querySelectorAll(".metric[data-metric]").forEach(card=>{const activate=()=>{metricFilter=metricFilter===card.dataset.metric?"all":card.dataset.metric;document.querySelectorAll(".metric[data-metric]").forEach(item=>item.classList.toggle("metric-active",item.dataset.metric===metricFilter));search.value="";filter="all";document.querySelectorAll(".filter").forEach(button=>button.classList.toggle("active",button.dataset.filter==="all"));renderTable();document.querySelector(".grid-main").scrollIntoView({behavior:"smooth",block:"start"})};card.onclick=activate;card.onkeydown=event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activate()}}});
     document.querySelector("#source-grid").innerHTML=sources.map((name,i)=>`<article class="source-card"><div class="source-card-head"><strong>${name}</strong><span class="status-ok"></span></div><p>${i<4?"Prioridad alta · Patagonia / Argentina":"Monitoreo público automatizado"}</p><div class="source-card-foot"><span>${i%3===0?"RSS":"Web"}</span><span>${3+(i*7)%42} artículos</span></div></article>`).join("");
     document.querySelector("#activity-list").innerHTML=runs.map(run=>`<article class="run"><div class="run-time"><strong>${run.date}</strong><span>${run.status}</span></div><div class="run-stats"><div><strong>${run.articles}</strong><span>artículos</span></div><div><strong>${run.candidates}</strong><span>candidatos</span></div><div><strong>${run.qualified}</strong><span>oportunidades</span></div></div><span class="tag high">Sin errores</span></article>`).join("");
-    document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>{document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.querySelector(`#view-${button.dataset.view}`).classList.add("active");document.querySelector("#page-title").textContent={opportunities:"Oportunidades detectadas",contracts:"Contratos por vencer",sources:"Fuentes monitoreadas",activity:"Actividad del Radar"}[button.dataset.view];document.querySelector("#sidebar").classList.remove("open")});
+    document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>{document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.querySelector(`#view-${button.dataset.view}`).classList.add("active");document.querySelector("#page-title").textContent={opportunities:"Oportunidades detectadas",contracts:"Contratos por vencer",contacts:"Agenda compartida",sources:"Fuentes monitoreadas",activity:"Actividad del Radar"}[button.dataset.view];document.querySelector("#sidebar").classList.remove("open")});
     document.querySelector("#mobile-menu").onclick=()=>document.querySelector("#sidebar").classList.toggle("open");document.querySelector("#run-demo").onclick=()=>showToast("Demo ejecutada · 3 oportunidades calificadas");renderTable();renderDetail();
   </script>
-  <script src="/app.js?v=contracts-v1" defer></script>
+  <script src="/app.js?v=contacts-v1" defer></script>
 </body>
 </html>
