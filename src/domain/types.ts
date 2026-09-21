@@ -111,3 +111,19 @@ export interface RunSummary {
 export interface SourceAdapter {
   fetch(source: SourceDefinition): Promise<Article[]>;
 }
+
+export interface ContractFinding {
+  relevant: boolean;
+  operator: string;
+  provider: string;
+  service: string;
+  basin: string;
+  province: string;
+  evidence: string;
+  reference_date: string | null;
+  explicit_end_date: string | null;
+  duration_months: number | null;
+  option_months: number | null;
+  confidence: number;
+  confidence_basis: string;
+}

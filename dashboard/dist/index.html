@@ -28,6 +28,7 @@
       <div class="brand"><div class="mark" aria-hidden="true"></div><div><strong>Radar Petrolero</strong><span>Inteligencia comercial</span></div></div>
       <nav class="nav" aria-label="Navegación principal">
         <button class="active" data-view="opportunities"><span class="icon">◉</span>Oportunidades</button>
+        <button data-view="contracts"><span class="icon">⌛</span>Contratos por vencer</button>
         <button data-view="sources"><span class="icon">⌁</span>Fuentes</button>
         <button data-view="activity"><span class="icon">↻</span>Actividad</button>
       </nav>
@@ -60,6 +61,15 @@
             <section class="panel"><div class="panel-head"><h3>Estado del Radar</h3><span>Última ejecución</span></div><div class="health-list"><div class="health-row"><div><div class="health-name">Fuentes públicas</div><div class="health-meta">20 de 20 respondieron</div></div><div class="health-status"><span class="dot"></span>Operativas</div></div><div class="health-row"><div><div class="health-name">Prefiltro comercial</div><div class="health-meta">486 artículos → 9 candidatos</div></div><div class="health-status"><span class="dot"></span>98,1% filtrado</div></div><div class="health-row"><div><div class="health-name">Sincronización Attio</div><div class="health-meta">3 creadas · 2 actualizadas</div></div><div class="health-status"><span class="dot"></span>Completada</div></div></div></section>
           </div>
         </section>
+        <section class="view" id="view-contracts">
+          <div class="section-lead"><div><h2>Contratos por vencer</h2><p>Estimaciones para los próximos 6 meses · toda Argentina</p></div></div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>Calendario comercial</h3><span id="contract-count">0 contratos identificados</span></div><span>Solo servicios compatibles con Vermaz</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Operadora / prestadora</th><th>Servicio y cuenca</th><th>Fin base</th><th>Con prórroga +1</th><th>Certeza</th><th>Fuente</th></tr></thead><tbody id="contract-body"></tbody></table></div>
+            <div class="empty" id="contract-empty">Todavía no hay contratos con vencimiento estimado dentro de los próximos 6 meses. El Radar está revisando el histórico público.</div>
+          </section>
+          <div class="panel" style="margin-top:18px;padding:18px"><strong style="font-size:.82rem">Cómo leer las fechas</strong><p style="font-size:.76rem;color:var(--muted);margin:7px 0 0">“Fin base” usa el plazo publicado o estima 24 meses desde la adjudicación/inicio. “Con prórroga +1” agrega 12 meses cuando la extensión no está confirmada. Abrí la fuente para validar antes de una acción comercial.</p></div>
+        </section>
         <section class="view" id="view-sources"><div class="section-lead"><div><h2>Fuentes monitoreadas</h2><p>Medios, organismos y operadoras que alimentan el Radar</p></div></div><div class="source-grid" id="source-grid"></div></section>
         <section class="view" id="view-activity"><div class="section-lead"><div><h2>Actividad del Radar</h2><p>Trazabilidad de ejecuciones, volumen y resultados</p></div></div><div class="activity" id="activity-list"></div></section>
       </div>
@@ -87,9 +97,9 @@
     document.querySelectorAll(".metric[data-metric]").forEach(card=>{const activate=()=>{metricFilter=metricFilter===card.dataset.metric?"all":card.dataset.metric;document.querySelectorAll(".metric[data-metric]").forEach(item=>item.classList.toggle("metric-active",item.dataset.metric===metricFilter));search.value="";filter="all";document.querySelectorAll(".filter").forEach(button=>button.classList.toggle("active",button.dataset.filter==="all"));renderTable();document.querySelector(".grid-main").scrollIntoView({behavior:"smooth",block:"start"})};card.onclick=activate;card.onkeydown=event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activate()}}});
     document.querySelector("#source-grid").innerHTML=sources.map((name,i)=>`<article class="source-card"><div class="source-card-head"><strong>${name}</strong><span class="status-ok"></span></div><p>${i<4?"Prioridad alta · Patagonia / Argentina":"Monitoreo público automatizado"}</p><div class="source-card-foot"><span>${i%3===0?"RSS":"Web"}</span><span>${3+(i*7)%42} artículos</span></div></article>`).join("");
     document.querySelector("#activity-list").innerHTML=runs.map(run=>`<article class="run"><div class="run-time"><strong>${run.date}</strong><span>${run.status}</span></div><div class="run-stats"><div><strong>${run.articles}</strong><span>artículos</span></div><div><strong>${run.candidates}</strong><span>candidatos</span></div><div><strong>${run.qualified}</strong><span>oportunidades</span></div></div><span class="tag high">Sin errores</span></article>`).join("");
-    document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>{document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.querySelector(`#view-${button.dataset.view}`).classList.add("active");document.querySelector("#page-title").textContent={opportunities:"Oportunidades detectadas",sources:"Fuentes monitoreadas",activity:"Actividad del Radar"}[button.dataset.view];document.querySelector("#sidebar").classList.remove("open")});
+    document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>{document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.querySelector(`#view-${button.dataset.view}`).classList.add("active");document.querySelector("#page-title").textContent={opportunities:"Oportunidades detectadas",contracts:"Contratos por vencer",sources:"Fuentes monitoreadas",activity:"Actividad del Radar"}[button.dataset.view];document.querySelector("#sidebar").classList.remove("open")});
     document.querySelector("#mobile-menu").onclick=()=>document.querySelector("#sidebar").classList.toggle("open");document.querySelector("#run-demo").onclick=()=>showToast("Demo ejecutada · 3 oportunidades calificadas");renderTable();renderDetail();
   </script>
-  <script src="/app.js?v=pires-exact-2" defer></script>
+  <script src="/app.js?v=contracts-v1" defer></script>
 </body>
 </html>

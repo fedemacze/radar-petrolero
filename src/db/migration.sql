@@ -82,3 +82,15 @@ CREATE TABLE IF NOT EXISTS sync_attempts (
 CREATE INDEX IF NOT EXISTS articles_published_at_idx ON articles(published_at DESC);
 CREATE INDEX IF NOT EXISTS events_last_seen_at_idx ON events(last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS sync_attempts_event_key_idx ON sync_attempts(event_key, attempted_at DESC);
+
+CREATE TABLE IF NOT EXISTS contract_reviews (
+  article_id bigint PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+  relevant boolean NOT NULL,
+  finding jsonb NOT NULL,
+  base_end_date date,
+  option_end_date date,
+  confidence integer NOT NULL,
+  reviewed_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS contract_reviews_expiry_idx ON contract_reviews(base_end_date, option_end_date);

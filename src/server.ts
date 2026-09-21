@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { timingSafeEqual } from "node:crypto";
 import { OpportunityAnalyzer } from "./analysis/openai.js";
+import { ContractAnalyzer } from "./analysis/contract-analyzer.js";
 import { AttioClient } from "./clients/attio.js";
 import { loadEnv } from "./config/env.js";
 import { Database } from "./db/database.js";
@@ -27,8 +28,9 @@ const sourceAdapter = new SourceRouter({
   api: new UnsupportedApiAdapter(),
 });
 const analyzer = new OpportunityAnalyzer(env.OPENAI_API_KEY, env.OPENAI_MODEL);
+const contractAnalyzer = new ContractAnalyzer(env.OPENAI_API_KEY, env.OPENAI_MODEL);
 const attio = env.ATTIO_API_KEY ? new AttioClient({ apiKey: env.ATTIO_API_KEY, object: env.ATTIO_OBJECT, stageAttributeId: env.ATTIO_STAGE_ATTRIBUTE_ID, detectedStageId: env.ATTIO_DETECTED_STAGE_ID }) : null;
-const runner = new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun: effectiveDryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT });
+const runner = new RadarRunner({ database, sourceAdapter, analyzer, contractAnalyzer, attio, logger, dryRun: effectiveDryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT });
 const indexHtml = await readFile(resolve("dashboard/dist/index.html"));
 const appJs = await readFile(resolve("dashboard/dist/app.js"));
 let running = false;

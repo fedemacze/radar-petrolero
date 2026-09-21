@@ -1,4 +1,5 @@
 import { OpportunityAnalyzer } from "./analysis/openai.js";
+import { ContractAnalyzer } from "./analysis/contract-analyzer.js";
 import { AttioClient } from "./clients/attio.js";
 import { loadEnv } from "./config/env.js";
 import { Database } from "./db/database.js";
@@ -22,12 +23,13 @@ const sourceAdapter = new SourceRouter({
   api: new UnsupportedApiAdapter(),
 });
 const analyzer = new OpportunityAnalyzer(env.OPENAI_API_KEY, env.OPENAI_MODEL);
+const contractAnalyzer = new ContractAnalyzer(env.OPENAI_API_KEY, env.OPENAI_MODEL);
 const attio = env.ATTIO_API_KEY ? new AttioClient({ apiKey: env.ATTIO_API_KEY, object: env.ATTIO_OBJECT, stageAttributeId: env.ATTIO_STAGE_ATTRIBUTE_ID, detectedStageId: env.ATTIO_DETECTED_STAGE_ID }) : null;
 
 try {
   await database.migrate();
   if (!dryRun && attio) await attio.validateAttributes();
-  const summary = await new RadarRunner({ database, sourceAdapter, analyzer, attio, logger, dryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT }).run();
+  const summary = await new RadarRunner({ database, sourceAdapter, analyzer, contractAnalyzer, attio, logger, dryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT }).run();
   logger.info("Ejecución finalizada", summary as unknown as Record<string, unknown>);
 } catch (error) {
   logger.error("Ejecución abortada", { error: error instanceof Error ? error.message : String(error) });

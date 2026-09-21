@@ -1,6 +1,6 @@
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const dateTime = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value)) : "Sin ejecuciones";
-document.querySelector("#dashboard-version").textContent = "Panel v2 · filtro Pires exacto";
+document.querySelector("#dashboard-version").textContent = "Panel v3 · contratos por vencer";
 const piresCompany = (value) => {
   const name = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (/(^| )sga( |$)/.test(name)) return "SGA";
@@ -14,6 +14,12 @@ async function loadRealData() {
   const response = await fetch("/api/dashboard", { cache: "no-store" });
   if (!response.ok) throw new Error("No se pudieron cargar los datos del Radar");
   const data = await response.json();
+  const contractBody = document.querySelector("#contract-body");
+  const contracts = data.contracts || [];
+  const shortDate = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${String(value).slice(0,10)}T12:00:00Z`)) : "Sin dato";
+  contractBody.innerHTML = contracts.map((row) => { const value = row.finding || {}; const confidence = Number(row.confidence || 0); return `<tr><td><div class="company">${safe(value.operator || "Operadora sin identificar")}</div><div class="location">${safe(value.provider || "Prestadora no publicada")}</div></td><td><div>${safe(value.service)}</div><div class="location">${safe(value.basin || value.province || "Argentina")}</div></td><td>${shortDate(row.base_end_date)}</td><td>${shortDate(row.option_end_date)}</td><td><span class="tag ${confidence >= 85 ? "high" : confidence >= 60 ? "contact" : "early"}">${confidence}%</span><div class="location">${confidence >= 85 ? "Alta" : confidence >= 60 ? "Media" : "Baja"}</div></td><td><button class="secondary" onclick="window.open('${safe(row.source_url)}','_blank','noopener')">Abrir</button></td></tr>`; }).join("");
+  document.querySelector("#contract-count").textContent = `${contracts.length} contrato${contracts.length === 1 ? "" : "s"} identificado${contracts.length === 1 ? "" : "s"}`;
+  document.querySelector("#contract-empty").hidden = contracts.length > 0;
   const relevant = data.opportunities.filter((row) => row.opportunity.relevante);
   const qualified = relevant.filter((row) => row.opportunity.score_radar >= 75);
   const piresOpportunities = relevant.filter((row) => piresCompany(row.opportunity.empresa));

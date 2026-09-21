@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ATTIO, SOURCES } from "../config/radar.js";
 import type { AttioClient } from "../clients/attio.js";
 import type { OpportunityAnalyzer } from "../analysis/openai.js";
+import type { ContractAnalyzer } from "../analysis/contract-analyzer.js";
 import { FatalAnalysisError } from "../analysis/openai.js";
 import type { Database } from "../db/database.js";
 import type { Article, RunSummary, SourceAdapter } from "../domain/types.js";
@@ -14,6 +15,7 @@ export interface RunnerDependencies {
   database: Database;
   sourceAdapter: SourceAdapter;
   analyzer: OpportunityAnalyzer;
+  contractAnalyzer: ContractAnalyzer;
   attio: AttioClient | null;
   logger: Logger;
   dryRun: boolean;
@@ -117,6 +119,17 @@ export class RadarRunner {
             await this.deps.database.recordSync(runId, item.event.eventKey, "attio-sync", "failed", undefined, message);
             this.deps.logger.error(`Sincronización Attio fallida: ${message}`, { eventKey: item.event.eventKey });
           }
+        }
+      }
+
+      for (const candidate of await this.deps.database.findContractCandidates()) {
+        try {
+          const finding = await this.deps.contractAnalyzer.analyze(candidate.article);
+          await this.deps.database.saveContractReview(candidate.id, finding);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.deps.logger.warn("Contrato candidato no analizado", { articleId: candidate.id, error: message });
+          if (error instanceof FatalAnalysisError) throw error;
         }
       }
 

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import type { AnalysisMetadata, Article, EventCandidate, Opportunity, PrefilterResult, RunSummary, SourceDefinition } from "../domain/types.js";
+import type { AnalysisMetadata, Article, ContractFinding, EventCandidate, Opportunity, PrefilterResult, RunSummary, SourceDefinition } from "../domain/types.js";
 import type { ExistingEventFingerprint } from "../pipeline/deduplicator.js";
 import { normalizeUrl } from "../lib/text.js";
 import { enforceCommercialGate } from "../pipeline/commercial-gate.js";
@@ -79,7 +79,43 @@ export class Database {
       } as unknown as EventCandidate;
       return { ...row, opportunity: enforceCommercialGate(event, row.opportunity as Opportunity) };
     });
-    return { opportunities: gatedOpportunities, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+    const contracts = await this.getExpiringContracts();
+    return { opportunities: gatedOpportunities, contracts, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+  }
+
+  async findContractCandidates(limit = 4): Promise<Array<{ id: number; article: Article }>> {
+    const result = await this.pool.query<any>(`SELECT a.* FROM articles a LEFT JOIN contract_reviews c ON c.article_id=a.id
+      WHERE c.article_id IS NULL
+        AND (a.title || ' ' || a.content) ~* '(contrato|adjudic|licitaci|renovaci|pr.rroga|concurso de precios)'
+        AND (a.title || ' ' || a.content) ~* '(mantenimiento|ducto|ca.er.a|instalaciones|almac.n|log.stica|transporte|producci.n|workover|pulling)'
+      ORDER BY a.published_at DESC NULLS LAST,a.id DESC LIMIT $1`, [limit]);
+    return result.rows.map((row: any) => ({ id: Number(row.id), article: { sourceId: row.source_id, sourceName: row.source_name, title: row.title, url: row.url, publishedAt: row.published_at?.toISOString() ?? null, content: row.content, contentHash: row.content_hash, retrievedAt: row.retrieved_at.toISOString() } }));
+  }
+
+  async saveContractReview(articleId: number, finding: ContractFinding): Promise<void> {
+    const addMonths = (date: string, months: number): string => { const value = new Date(`${date}T12:00:00Z`); value.setUTCMonth(value.getUTCMonth() + months); return value.toISOString().slice(0, 10); };
+    let baseEnd = finding.explicit_end_date;
+    let optionEnd: string | null = null;
+    let confidence = finding.confidence;
+    if (!baseEnd && finding.reference_date) {
+      baseEnd = addMonths(finding.reference_date, finding.duration_months ?? 24);
+      if (finding.duration_months === null) confidence = Math.min(confidence, 59);
+    }
+    if (baseEnd) optionEnd = addMonths(baseEnd, finding.option_months ?? 12);
+    if (finding.option_months === null) confidence = Math.min(confidence, finding.duration_months === null ? 59 : 84);
+    await this.pool.query(`INSERT INTO contract_reviews(article_id,relevant,finding,base_end_date,option_end_date,confidence)
+      VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(article_id) DO UPDATE SET relevant=EXCLUDED.relevant,finding=EXCLUDED.finding,base_end_date=EXCLUDED.base_end_date,option_end_date=EXCLUDED.option_end_date,confidence=EXCLUDED.confidence,reviewed_at=now()`,
+      [articleId, finding.relevant, finding, baseEnd, optionEnd, confidence]);
+  }
+
+  async getExpiringContracts(): Promise<unknown[]> {
+    const result = await this.pool.query(`SELECT c.article_id,c.finding,c.base_end_date,c.option_end_date,c.confidence,a.url AS source_url,a.source_name
+      FROM contract_reviews c JOIN articles a ON a.id=c.article_id
+      WHERE c.relevant=true AND c.confidence >= 35 AND (
+        c.base_end_date BETWEEN current_date AND current_date + interval '6 months' OR
+        c.option_end_date BETWEEN current_date AND current_date + interval '6 months')
+      ORDER BY LEAST(COALESCE(c.base_end_date,'infinity'::date),COALESCE(c.option_end_date,'infinity'::date)) ASC`);
+    return result.rows;
   }
 
   async hasCompletedRunToday(): Promise<boolean> {
