@@ -64,3 +64,10 @@ test("admite inteligencia privada concreta sin exigir publicación pública", ()
   }));
   assert.equal(result.relevante, true);
 });
+
+test("tolera eventos resumidos del dashboard sin lista de artículos", () => {
+  const summaryEvent = event("YPF abrió una licitación de mantenimiento");
+  delete (summaryEvent as Partial<EventCandidate>).articles;
+  const result = enforceCommercialGate(summaryEvent, opportunity({ tipo_senal: "Licitación", resumen_evidencia: "YPF abrió una licitación para mantenimiento de instalaciones de superficie." }));
+  assert.equal(result.relevante, true);
+});

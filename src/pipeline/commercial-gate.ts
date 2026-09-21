@@ -46,7 +46,7 @@ export function enforceCommercialGate(event: EventCandidate, opportunity: Opport
   const hasConcreteFact = includesAny(text, CONCRETE_SIGNALS) || replacement;
   const hasServiceFit = opportunity.servicios_vermaz.some((item) => item.servicio.trim() && item.justificacion.trim());
   const hasEvidence = opportunity.hechos_publicados.some((fact) => fact.trim().length >= 15);
-  const isPrivateIntelligence = event.articles.some((article) => article.sourceId === "private-vermaz");
+  const isPrivateIntelligence = event.articles?.some((article) => article.sourceId === "private-vermaz") ?? false;
 
   if (excluded || (!isPrivateIntelligence && !hasConcreteFact) || !hasServiceFit || !hasEvidence) {
     return {
