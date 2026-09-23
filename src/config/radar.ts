@@ -46,7 +46,9 @@ export const PREFILTER = {
     "argentina week", "atraer inversiones", "evento empresarial", "evento técnico", "conferencia", "cumbre energética",
     "reforma legal", "reforma normativa", "proyecto de ley", "mercado de carbono", "bonos de carbono",
     "amparo ambiental", "demanda ambiental", "reparación ambiental", "peajes free flow", "sistema de peajes",
-    "conflicto laboral", "reclamo salarial", "conciliación obligatoria",
+    "conflicto laboral", "reclamo salarial", "conciliación obligatoria", "presupuesto nacional",
+    "presupuesto 2027", "partida presupuestaria", "partidas presupuestarias", "asignación presupuestaria",
+    "asignaciones presupuestarias", "crédito presupuestario",
   ],
   noise: [
     "fútbol", "rugby", "espectáculo", "recital", "festival", "turismo", "gastronomía",

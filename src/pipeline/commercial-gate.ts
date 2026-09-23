@@ -8,6 +8,16 @@ const EXCLUDED_CONTEXTS = [
   "peajes free flow", "sistema de peajes", "conflicto laboral", "reclamo salarial", "conciliacion obligatoria",
 ];
 
+const GENERAL_BUDGET_SIGNALS = [
+  "presupuesto nacional", "presupuesto 2027", "partida presupuestaria", "partidas presupuestarias",
+  "asignacion presupuestaria", "asignaciones presupuestarias", "credito presupuestario",
+];
+
+const ACTIONABLE_PROCUREMENT_SIGNALS = [
+  "licitacion", "adjudicacion", "concurso de precios", "compulsa", "rfp", "rfq",
+  "convocatoria a proveedores", "busqueda de proveedores", "pliego de bases", "apertura de ofertas",
+];
+
 const REPLACEMENT_SIGNALS = [
   "incumplimiento del contratista", "incumplimiento del proveedor", "rescindio el contrato", "rescision del contrato",
   "fallas del contratista", "fallas del proveedor", "reemplazo del contratista", "cambio de contratista",
@@ -43,12 +53,14 @@ export function enforceCommercialGate(event: EventCandidate, opportunity: Opport
   const text = factualText(event, opportunity);
   const replacement = includesAny(text, REPLACEMENT_SIGNALS);
   const excluded = includesAny(text, EXCLUDED_CONTEXTS) && !replacement;
+  const budgetWithoutProcurement = includesAny(text, GENERAL_BUDGET_SIGNALS)
+    && !includesAny(text, ACTIONABLE_PROCUREMENT_SIGNALS);
   const hasConcreteFact = includesAny(text, CONCRETE_SIGNALS) || replacement;
   const hasServiceFit = opportunity.servicios_vermaz.some((item) => item.servicio.trim() && item.justificacion.trim());
   const hasEvidence = opportunity.hechos_publicados.some((fact) => fact.trim().length >= 15);
   const isPrivateIntelligence = event.articles?.some((article) => article.sourceId === "private-vermaz") ?? false;
 
-  if (excluded || (!isPrivateIntelligence && !hasConcreteFact) || !hasServiceFit || !hasEvidence) {
+  if (excluded || budgetWithoutProcurement || (!isPrivateIntelligence && !hasConcreteFact) || !hasServiceFit || !hasEvidence) {
     return {
       ...opportunity,
       relevante: false,

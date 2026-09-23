@@ -20,6 +20,16 @@ function priorityFor(score: number): Priority {
   return "baja";
 }
 
+const ACTIONABLE_PROCUREMENT_SIGNALS = [
+  "licitacion", "adjudicacion", "concurso de precios", "compulsa", "rfp", "rfq",
+  "convocatoria a proveedores", "busqueda de proveedores", "pliego de bases", "apertura de ofertas",
+] as const;
+
+const GENERAL_BUDGET_SIGNALS = [
+  "presupuesto nacional", "presupuesto 2027", "partida presupuestaria", "partidas presupuestarias",
+  "asignacion presupuestaria", "asignaciones presupuestarias", "credito presupuestario",
+] as const;
+
 export class Prefilter {
   evaluate(article: Article, now = new Date()): PrefilterResult {
     const text = normalizeText(`${article.title} ${article.content}`);
@@ -33,6 +43,8 @@ export class Prefilter {
     const displacementSignals = matches(text, PREFILTER.displacementSignals);
     const exclusionSignals = matches(text, PREFILTER.exclusionSignals);
     const noise = matches(text, PREFILTER.noise);
+    const generalBudget = matches(text, GENERAL_BUDGET_SIGNALS).length > 0;
+    const actionableProcurement = matches(text, ACTIONABLE_PROCUREMENT_SIGNALS).length > 0;
 
     let score = 0;
     if (piresCompanies.length) score += 35;
@@ -55,7 +67,8 @@ export class Prefilter {
     const earlyConcreteProject = earlySignals.length > 0 && projectSignals.length > 0 && serviceSignals.length > 0;
     const supplierDisplacement = hasCompany && displacementSignals.length > 0;
     const qualityRule = hasCompany && (procurement || concreteProject || earlyConcreteProject || supplierDisplacement);
-    const hardExcluded = exclusionSignals.length > 0 && !procurement && !supplierDisplacement;
+    const budgetWithoutProcurement = generalBudget && !actionableProcurement;
+    const hardExcluded = (exclusionSignals.length > 0 && !procurement && !supplierDisplacement) || budgetWithoutProcurement;
     const validAge = age === null || (age <= PREFILTER.maxAgeDays && age >= -2);
 
     return {

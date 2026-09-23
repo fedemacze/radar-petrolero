@@ -34,6 +34,26 @@ test("descarta promoción genérica de inversiones aunque mencione a YPF y un pr
   assert.equal(result.accepted, false);
 });
 
+test("descarta presupuesto general sin proceso de compra aunque mencione energía e infraestructura", () => {
+  const result = new Prefilter().evaluate(article({
+    sourceId: "adnsur",
+    sourceName: "ADNSUR",
+    title: "Presupuesto 2027: cuánto recibirán las universidades y cuánto se destinará a Defensa",
+    url: "https://www.adnsur.com.ar/politica/presupuesto-2027--cuanto-recibiran-las-universidades-y-cuanto-se-destinara-a-defensa_a6aad5925f49d28bfbd12a03e",
+    content: "El presupuesto nacional detalla partidas presupuestarias para energía, infraestructura y universidades.",
+  }));
+  assert.equal(result.accepted, false);
+  assert.ok(result.exclusionSignals.includes("presupuesto 2027"));
+});
+
+test("no bloquea una licitación concreta sólo porque cita su partida presupuestaria", () => {
+  const result = new Prefilter().evaluate(article({
+    title: "YPF abre licitación para mantenimiento de instalaciones",
+    content: "La licitación y su pliego de bases contemplan una partida presupuestaria para mantenimiento de planta.",
+  }));
+  assert.equal(result.accepted, true);
+});
+
 test("descarta regulación, litigios ambientales y conflictos laborales genéricos", () => {
   const filter = new Prefilter();
   assert.equal(filter.evaluate(article({ title: "YPF analiza una reforma legal", content: "La reforma legal busca atraer inversiones y mejorar la producción." })).accepted, false);

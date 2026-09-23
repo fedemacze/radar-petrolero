@@ -30,6 +30,29 @@ test("bloquea una inferencia comercial sin hecho operativo concreto", () => {
   assert.equal(result.relevante, false);
 });
 
+test("bloquea la nota de presupuesto 2027 aunque la IA invente encaje comercial", () => {
+  const result = enforceCommercialGate(event("Presupuesto 2027: cuánto recibirán las universidades y cuánto se destinará a Defensa"), opportunity({
+    empresa: "YPF",
+    proyecto: "Presupuesto energético 2027",
+    tipo_senal: "Inversión en infraestructura",
+    resumen_evidencia: "El presupuesto nacional asigna crédito presupuestario a infraestructura y energía.",
+    hechos_publicados: ["El proyecto de presupuesto 2027 distribuye partidas generales entre distintas áreas."],
+    score_radar: 91,
+  }));
+  assert.equal(result.relevante, false);
+  assert.equal(result.score_radar, 49);
+  assert.equal(result.buscar_en_attio, false);
+});
+
+test("mantiene una licitación concreta aunque la fuente mencione presupuesto", () => {
+  const result = enforceCommercialGate(event("YPF abrió licitación de mantenimiento con partida presupuestaria"), opportunity({
+    tipo_senal: "Licitación",
+    resumen_evidencia: "YPF publicó el pliego de bases para mantenimiento de instalaciones.",
+    hechos_publicados: ["La apertura de ofertas de la licitación será el próximo mes."],
+  }));
+  assert.equal(result.relevante, true);
+});
+
 test("mantiene una licitación concreta con servicio aplicable", () => {
   const result = enforceCommercialGate(event("YPF abrió una licitación de mantenimiento"), opportunity({
     tipo_senal: "Licitación",
