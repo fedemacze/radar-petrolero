@@ -16,6 +16,7 @@ import { sha256 } from "./lib/text.js";
 import type { SourceDefinition } from "./domain/types.js";
 
 const env = loadEnv();
+const release = "2026-09-23-expiries-v1";
 const effectiveDryRun = env.DRY_RUN || !env.ATTIO_PUBLICATION_ENABLED;
 if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY es obligatoria");
 if (!env.DASHBOARD_PASSWORD) throw new Error("DASHBOARD_PASSWORD es obligatoria para publicar el panel");
@@ -125,7 +126,7 @@ if (attio) {
 
 const server = createServer(async (request, response) => {
   try {
-    if (request.url === "/health") return json(response, 200, { ok: true, running });
+    if (request.url === "/health") return json(response, 200, { ok: true, running, release });
     if (!authorized(request)) {
       response.writeHead(401, { "www-authenticate": 'Basic realm="Radar Petrolero"' });
       return response.end("Acceso protegido");
