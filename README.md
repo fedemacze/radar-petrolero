@@ -1,6 +1,6 @@
 # Radar Petrolero
 
-MVP autónomo para detectar oportunidades comerciales petroleras para Vermaz. Reemplaza n8n con un proceso diario que consulta fuentes públicas, filtra y agrupa eventos, usa OpenAI con salida estructurada y crea o actualiza oportunidades en Attio.
+MVP autónomo para detectar oportunidades comerciales petroleras. Reemplaza n8n con un proceso diario que consulta fuentes públicas, filtra y agrupa eventos, usa OpenAI con salida estructurada y crea o actualiza oportunidades en Attio.
 
 ## Arquitectura
 
@@ -9,7 +9,7 @@ MVP autónomo para detectar oportunidades comerciales petroleras para Vermaz. Re
         ↓
 normalización y persistencia PostgreSQL
         ↓
-prefiltro comercial Vermaz/Pires
+prefiltro comercial configurable
         ↓
 deduplicación de artículos y eventos
         ↓

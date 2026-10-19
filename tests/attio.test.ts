@@ -10,7 +10,7 @@ test("mapea una oportunidad al esquema existente de Attio", () => {
   assert.equal(values.id_radar, "RP-ABC");
   assert.equal(values["stage-id"], "detected-id");
   assert.equal(values.prioridad, "🟢 Alta");
-  assert.deepEqual(values.servicio_vermaz, ["Mantenimiento instalaciones de superficie"]);
+  assert.deepEqual(values.servicio_aplicable, ["Mantenimiento instalaciones de superficie"]);
 });
 
 test("normaliza Vaca Muerta a la opción de cuenca configurada en Attio", () => {

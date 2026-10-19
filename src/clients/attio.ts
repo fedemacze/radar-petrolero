@@ -86,8 +86,8 @@ export function buildAttioValues(event: EventCandidate, opportunity: Opportunity
   if (opportunity.proyecto) values.yacimiento_proyecto = opportunity.proyecto;
   const type = signalType(opportunity.tipo_senal);
   if (type) values.tipo_de_senal = type;
-  const services = opportunity.servicios_vermaz.map((fit) => ATTIO.serviceOptions[fit.servicio.toLocaleLowerCase("es-AR")]).filter(Boolean);
-  if (services.length) values.servicio_vermaz = [...new Set(services)];
+  const services = opportunity.servicios_aplicables.map((fit) => ATTIO.serviceOptions[fit.servicio.toLocaleLowerCase("es-AR")]).filter(Boolean);
+  if (services.length) values.servicio_aplicable = [...new Set(services)];
   return values;
 }
 

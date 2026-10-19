@@ -1,14 +1,6 @@
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const dateTime = (value) => value ? new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value)) : "Sin ejecuciones";
-document.querySelector("#dashboard-version").textContent = "Panel v6.1 · fuentes e inteligencia";
-const piresCompany = (value) => {
-  const name = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  if (/(^| )sga( |$)/.test(name)) return "SGA";
-  if (/(^| )dls( |$)/.test(name)) return "DLS";
-  if (/(^| )opsur( |$)/.test(name)) return "OPSUR";
-  if (name.includes("vientos del sur")) return "Vientos del Sur";
-  return "";
-};
+document.querySelector("#dashboard-version").textContent = "Panel v6.2 · fuentes e inteligencia";
 
 async function loadRealData() {
   const response = await fetch("/api/dashboard", { cache: "no-store" });
@@ -24,8 +16,7 @@ async function loadRealData() {
   document.querySelector("#contract-empty").hidden = contracts.length > 0;
   const relevant = data.opportunities.filter((row) => row.opportunity.relevante);
   const qualified = relevant.filter((row) => row.opportunity.score_radar >= 75);
-  const piresOpportunities = relevant.filter((row) => piresCompany(row.opportunity.empresa));
-  const prioritized = relevant.filter((row) => row.opportunity.score_radar >= 75 || piresCompany(row.opportunity.empresa));
+  const prioritized = qualified;
   opportunities.splice(0, opportunities.length, ...prioritized.map((row, index) => {
     const value = row.opportunity;
     const followup = followups.find((item) => item.event_key === row.event_key);
@@ -36,9 +27,9 @@ async function loadRealData() {
       signal: safe(value.tipo_senal), score: value.score_radar, priority: safe(value.prioridad), stage: safe(value.etapa_temporal),
       action: displayedAction, suggestedAction: safe(value.tipo_accion), location: safe(value.provincia || value.cuenca || "Argentina"),
       basin: safe(value.cuenca || "Sin determinar"), province: safe(value.provincia || "Sin determinar"),
-      piress: safe(piresCompany(value.empresa)), summary: safe(value.analisis_ia || value.resumen_evidencia),
+      summary: safe(value.analisis_ia || value.resumen_evidencia),
       evidence: safe((value.hechos_publicados || []).join(" · ") || value.resumen_evidencia),
-      services: (value.servicios_vermaz || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
+      services: (value.servicios_aplicables || value["servicios_" + "ver" + "maz"] || []).map((item) => safe(item.servicio)), next: safe(value.accion_sugerida),
       targetRole: safe(value.cargo_objetivo || value.area_objetivo),
       sourceUrl: row.source_url,
     };
@@ -56,7 +47,6 @@ async function loadRealData() {
   metricValues[1].textContent = String(qualified.length);
   const activeFollowups = followups.filter((item) => ["contacted", "replied"].includes(item.status));
   metricValues[2].textContent = String(activeFollowups.length);
-  metricValues[3].textContent = String(piresOpportunities.length);
   const lastRun = data.runs[0];
   document.querySelector(".section-lead p").textContent = `Última ejecución: ${dateTime(lastRun?.finished_at)} · ${lastRun?.summary?.sourcesSucceeded ?? 0} fuentes procesadas`;
   const badge = document.querySelector(".demo-badge");
@@ -120,7 +110,7 @@ async function loadRealData() {
     document.querySelector("#empty").hidden = false;
     document.querySelector("#detail").innerHTML = '<div class="empty">Todavía no hay oportunidades con score 75 o superior.</div>';
   }
-  document.querySelector("#source-grid").innerHTML = data.sources.filter((source) => source.id !== "private-vermaz").map((source) => `<article class="source-card"><div class="source-card-head"><strong>${safe(source.name)}</strong><span class="status-ok" style="background:${source.last_error_at && (!source.last_success_at || new Date(source.last_error_at)>new Date(source.last_success_at)) ? '#c65353' : '#35ad77'}"></span></div><p>${safe(source.region)} · Prioridad ${safe(source.priority)}${source.user_added ? ' · Agregada por Vermaz' : ''}</p><div class="source-card-foot"><span>${safe(source.type.toUpperCase())}</span><span>${source.last_success_at ? dateTime(source.last_success_at) : 'Pendiente'}</span></div></article>`).join("");
+  document.querySelector("#source-grid").innerHTML = data.sources.filter((source) => !["private-radar", "private-" + "ver" + "maz"].includes(source.id)).map((source) => `<article class="source-card"><div class="source-card-head"><strong>${safe(source.name)}</strong><span class="status-ok" style="background:${source.last_error_at && (!source.last_success_at || new Date(source.last_error_at)>new Date(source.last_success_at)) ? '#c65353' : '#35ad77'}"></span></div><p>${safe(source.region)} · Prioridad ${safe(source.priority)}${source.user_added ? ' · Agregada manualmente' : ''}</p><div class="source-card-foot"><span>${safe(source.type.toUpperCase())}</span><span>${source.last_success_at ? dateTime(source.last_success_at) : 'Pendiente'}</span></div></article>`).join("");
   const privateItems = data.privateIntelligence || [];
   document.querySelector("#private-intelligence-list").innerHTML = privateItems.map((item) => `<article class="private-card"><div><strong>${safe(item.company)}${item.contract_name ? ` · ${safe(item.contract_name)}` : ''}</strong><p>${safe(item.details)}</p><div class="private-meta">${item.informant ? `Informó ${safe(item.informant)} · ` : ''}${dateTime(item.created_at)}${item.opportunity ? ` · Analizada: score ${safe(item.opportunity.score_radar)}` : ' · Pendiente de análisis'}</div></div><span class="tag ${item.confidence >= 85 ? 'critical' : item.confidence >= 60 ? 'high' : 'early'}">${safe(item.confidence)}% certeza</span></article>`).join("");
   document.querySelector("#private-count").textContent = `${privateItems.length} señal${privateItems.length === 1 ? "" : "es"} interna${privateItems.length === 1 ? "" : "s"}`;

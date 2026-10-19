@@ -7,7 +7,7 @@ export const opportunitySchema = z.object({
   provincia: z.string(),
   cuenca: z.string(),
   proyecto: z.string(),
-  servicios_vermaz: z.array(z.object({ servicio: z.string(), justificacion: z.string() })),
+  servicios_aplicables: z.array(z.object({ servicio: z.string(), justificacion: z.string() })),
   tipo_senal: z.string(),
   score_radar: z.number().int().min(0).max(100),
   prioridad: z.enum(["Crítica", "Alta", "Media", "Baja", "Muy baja"]),
@@ -36,7 +36,7 @@ export const opportunityJsonSchema = {
   properties: {
     relevante: { type: "boolean" }, empresa: { type: "string" }, empresa_prioritaria: { type: "boolean" },
     provincia: { type: "string" }, cuenca: { type: "string" }, proyecto: { type: "string" },
-    servicios_vermaz: { type: "array", items: { type: "object", additionalProperties: false, required: ["servicio", "justificacion"], properties: { servicio: { type: "string" }, justificacion: { type: "string" } } } },
+    servicios_aplicables: { type: "array", items: { type: "object", additionalProperties: false, required: ["servicio", "justificacion"], properties: { servicio: { type: "string" }, justificacion: { type: "string" } } } },
     tipo_senal: { type: "string" }, score_radar: { type: "integer", minimum: 0, maximum: 100 },
     prioridad: { type: "string", enum: ["Crítica", "Alta", "Media", "Baja", "Muy baja"] },
     etapa_temporal: { type: "string", enum: ["Temprana", "En desarrollo", "Contratación", "Adjudicada"] },

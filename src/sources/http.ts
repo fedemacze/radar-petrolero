@@ -11,7 +11,7 @@ export class HttpClient {
         signal: controller.signal,
         redirect: "follow",
         headers: {
-          "user-agent": "RadarPetrolero/0.1 (+contacto comercial Vermaz; lector de noticias)",
+          "user-agent": "RadarPetrolero/0.1 (+lector de noticias públicas)",
           accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.5",
         },
       });

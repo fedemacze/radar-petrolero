@@ -3,7 +3,6 @@ import type { SourceDefinition } from "../domain/types.js";
 export const PREFILTER = {
   maxAgeDays: 21,
   minimumScore: 25,
-  piresCompanies: ["sga", "sga servicios", "dls", "dls archer", "opsur", "vientos del sur"],
   targetCompanies: [
     "ypf", "pan american energy", "pae", "vista energy", "vista", "cgc",
     "compañía general de combustibles", "tecpetrol", "pluspetrol", "pampa energía",
@@ -56,7 +55,7 @@ export const PREFILTER = {
   ],
 } as const;
 
-export const VERMAZ_SERVICES = [
+export const RADAR_SERVICES = [
   "Mantenimiento de instalaciones de superficie",
   "Mantenimiento de líneas soterradas",
   "Administración y logística de almacenes",

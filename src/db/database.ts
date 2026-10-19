@@ -6,7 +6,7 @@ import type { ExistingEventFingerprint } from "../pipeline/deduplicator.js";
 import { normalizeUrl } from "../lib/text.js";
 import { normalizeText, sha256 } from "../lib/text.js";
 import { enforceCommercialGate } from "../pipeline/commercial-gate.js";
-import { CURATED_CONTRACTS, CURATED_OPPORTUNITIES } from "../config/curated-intelligence.js";
+import { CURATED_CONTRACTS } from "../config/curated-intelligence.js";
 
 const { Pool } = pg;
 const LOCK_KEY = 1_934_728_011;
@@ -84,9 +84,8 @@ export class Database {
     const contracts = [...CURATED_CONTRACTS, ...await this.getExpiringContracts()];
     const contacts = await this.listContacts();
     const followups = await this.listFollowups();
-    const mergedOpportunities = [...CURATED_OPPORTUNITIES, ...gatedOpportunities.filter((row) => !CURATED_OPPORTUNITIES.some((item) => item.event_key === row.event_key))];
     const privateIntelligence = await this.listPrivateIntelligence();
-    return { opportunities: mergedOpportunities, contracts, contacts, followups, privateIntelligence, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
+    return { opportunities: gatedOpportunities, contracts, contacts, followups, privateIntelligence, sources: sources.rows, runs: runs.rows, estimatedOpenAiUsd: usage };
   }
 
   async listConfiguredSources(): Promise<SourceDefinition[]> {
@@ -114,16 +113,16 @@ export class Database {
   async addPrivateIntelligence(input: { company: string; contractName: string; informant: string; confidence: number; details: string }): Promise<{ eventKey: string }> {
     const now = new Date().toISOString();
     const identity = sha256(`${input.company}|${input.contractName}|${input.details}|${now}`).slice(0, 24).toUpperCase();
-    const source: SourceDefinition = { id: "private-vermaz", name: "Inteligencia privada Vermaz", type: "web", url: "https://radar.vermaz.local/inteligencia", region: "Argentina", priority: "critica", enabled: false };
+    const source: SourceDefinition = { id: "private-radar", name: "Fuente privada", type: "web", url: "https://radar.local/inteligencia", region: "Argentina", priority: "critica", enabled: false };
     await this.pool.query(`INSERT INTO sources(id,name,type,url,region,priority,enabled,user_added) VALUES($1,$2,$3,$4,$5,$6,false,false)
       ON CONFLICT(id) DO NOTHING`, [source.id, source.name, source.type, source.url, source.region, source.priority]);
     const title = `${input.company} · ${input.contractName || "Señal comercial privada"}`;
-    const content = `INFORMACIÓN INTERNA DE VERMAZ. Empresa: ${input.company}. Contrato o servicio: ${input.contractName || "No especificado"}. Nivel de certeza informado: ${input.confidence}%. Detalle: ${input.details}`;
-    const article: Article = { sourceId: source.id, sourceName: source.name, title, url: `private-vermaz://${identity}`, publishedAt: now, content, retrievedAt: now, contentHash: sha256(content) };
+    const content = `INFORMACIÓN INTERNA. Empresa: ${input.company}. Contrato o servicio: ${input.contractName || "No especificado"}. Nivel de certeza informado: ${input.confidence}%. Detalle: ${input.details}`;
+    const article: Article = { sourceId: source.id, sourceName: source.name, title, url: `private-radar://${identity}`, publishedAt: now, content, retrievedAt: now, contentHash: sha256(content) };
     const saved = await this.insertArticle(article, null);
     if (saved.id === null) throw new Error("No se pudo guardar la información privada");
     const eventKey = `RP-PRIV-${identity}`;
-    const prefilter: PrefilterResult = { accepted: true, score: Math.max(60, input.confidence), priority: input.confidence >= 85 ? "critica" : "alta", piresCompanies: [], targetCompanies: [input.company], criticalSignals: ["información privada"], projectSignals: [], serviceSignals: [input.contractName || "servicio informado"], earlySignals: [], displacementSignals: ["posible reemplazo de prestadora"], exclusionSignals: [], ageDays: 0 };
+    const prefilter: PrefilterResult = { accepted: true, score: Math.max(60, input.confidence), priority: input.confidence >= 85 ? "critica" : "alta", targetCompanies: [input.company], criticalSignals: ["información privada"], projectSignals: [], serviceSignals: [input.contractName || "servicio informado"], earlySignals: [], displacementSignals: ["posible reemplazo de prestadora"], exclusionSignals: [], ageDays: 0 };
     await this.upsertEvent({ eventKey, primaryArticle: article, articles: [article], prefilter }, [saved.id]);
     await this.pool.query(`INSERT INTO private_intelligence(article_id,company,contract_name,informant,confidence,details) VALUES($1,$2,$3,$4,$5,$6)`,
       [saved.id, input.company, input.contractName, input.informant, input.confidence, input.details]);

@@ -34,7 +34,6 @@ export class Prefilter {
   evaluate(article: Article, now = new Date()): PrefilterResult {
     const text = normalizeText(`${article.title} ${article.content}`);
     const age = ageDays(article.publishedAt, now);
-    const piresCompanies = matches(text, PREFILTER.piresCompanies);
     const targetCompanies = matches(text, PREFILTER.targetCompanies);
     const criticalSignals = matches(text, PREFILTER.criticalSignals);
     const projectSignals = matches(text, PREFILTER.projectSignals);
@@ -47,7 +46,6 @@ export class Prefilter {
     const actionableProcurement = matches(text, ACTIONABLE_PROCUREMENT_SIGNALS).length > 0;
 
     let score = 0;
-    if (piresCompanies.length) score += 35;
     if (targetCompanies.length) score += 20;
     if (criticalSignals.length) score += 30;
     if (projectSignals.length) score += 20;
@@ -61,7 +59,7 @@ export class Prefilter {
     if (exclusionSignals.length) score -= 45;
     score = Math.max(0, Math.min(100, score));
 
-    const hasCompany = piresCompanies.length > 0 || targetCompanies.length > 0;
+    const hasCompany = targetCompanies.length > 0;
     const procurement = criticalSignals.length > 0 && serviceSignals.length > 0;
     const concreteProject = projectSignals.length > 0 && serviceSignals.length > 0;
     const earlyConcreteProject = earlySignals.length > 0 && projectSignals.length > 0 && serviceSignals.length > 0;
@@ -75,7 +73,6 @@ export class Prefilter {
       accepted: validAge && qualityRule && !hardExcluded && score >= PREFILTER.minimumScore,
       score,
       priority: priorityFor(score),
-      piresCompanies,
       targetCompanies,
       criticalSignals,
       projectSignals,

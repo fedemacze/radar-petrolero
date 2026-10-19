@@ -27,7 +27,6 @@ export interface PrefilterResult {
   accepted: boolean;
   score: number;
   priority: Priority;
-  piresCompanies: string[];
   targetCompanies: string[];
   criticalSignals: string[];
   projectSignals: string[];
@@ -57,7 +56,7 @@ export interface Opportunity {
   provincia: string;
   cuenca: string;
   proyecto: string;
-  servicios_vermaz: ServiceFit[];
+  servicios_aplicables: ServiceFit[];
   tipo_senal: string;
   score_radar: number;
   prioridad: "Crítica" | "Alta" | "Media" | "Baja" | "Muy baja";

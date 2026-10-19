@@ -6,7 +6,7 @@ export interface ExistingEventFingerprint { eventKey: string; title: string; pre
 
 function eventIdentity(item: EvaluatedArticle): string {
   const p = item.prefilter;
-  const companies = [...p.piresCompanies, ...p.targetCompanies].map(normalizeText).sort().join("|");
+  const companies = p.targetCompanies.map(normalizeText).sort().join("|");
   const signals = [...p.criticalSignals, ...p.projectSignals, ...p.earlySignals].map(normalizeText).sort().slice(0, 5).join("|");
   const titleTokens = [...tokenize(item.article.title)].sort().slice(0, 10).join("|");
   return `${companies}::${signals}::${titleTokens}`;
@@ -14,8 +14,8 @@ function eventIdentity(item: EvaluatedArticle): string {
 
 function related(left: EvaluatedArticle, right: EvaluatedArticle): boolean {
   if (normalizeUrl(left.article.url) === normalizeUrl(right.article.url)) return true;
-  const leftCompanies = new Set([...left.prefilter.piresCompanies, ...left.prefilter.targetCompanies].map(normalizeText));
-  const sharesCompany = [...right.prefilter.piresCompanies, ...right.prefilter.targetCompanies]
+  const leftCompanies = new Set(left.prefilter.targetCompanies.map(normalizeText));
+  const sharesCompany = right.prefilter.targetCompanies
     .map(normalizeText).some((company) => leftCompanies.has(company));
   if (!sharesCompany) return false;
   const titleSimilarity = jaccard(left.article.title, right.article.title);
@@ -36,9 +36,9 @@ function choosePrimary(items: EvaluatedArticle[]): EvaluatedArticle {
 
 export class Deduplicator {
   reconcile(event: EventCandidate, existing: ExistingEventFingerprint[]): EventCandidate {
-    const companies = new Set([...event.prefilter.piresCompanies, ...event.prefilter.targetCompanies].map(normalizeText));
+    const companies = new Set(event.prefilter.targetCompanies.map(normalizeText));
     const match = existing.find((candidate) => {
-      const sharesCompany = [...candidate.prefilter.piresCompanies, ...candidate.prefilter.targetCompanies]
+      const sharesCompany = candidate.prefilter.targetCompanies
         .map(normalizeText).some((company) => companies.has(company));
       return sharesCompany && jaccard(event.primaryArticle.title, candidate.title) >= 0.42;
     });

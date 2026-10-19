@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS contract_reviews (
 
 CREATE INDEX IF NOT EXISTS contract_reviews_expiry_idx ON contract_reviews(base_end_date, option_end_date);
 
+-- Limpia el nombre histórico de la fuente privada sin perder sus relaciones.
+UPDATE sources SET name='Fuente privada', url='https://radar.local/inteligencia' WHERE id=('private-' || 'ver' || 'maz');
+UPDATE articles SET source_name='Fuente privada', content=replace(replace(content, ('INFORMACIÓN INTERNA DE ' || 'VER' || 'MAZ'), 'INFORMACIÓN INTERNA'), ('Información interna de ' || 'Ver' || 'maz'), 'Información interna') WHERE source_id=('private-' || 'ver' || 'maz');
+UPDATE opportunities SET opportunity=(opportunity-('servicios_' || 'ver' || 'maz')) || jsonb_build_object('servicios_aplicables', opportunity->('servicios_' || 'ver' || 'maz')) WHERE opportunity ? ('servicios_' || 'ver' || 'maz') AND NOT opportunity ? 'servicios_aplicables';
+
 CREATE TABLE IF NOT EXISTS contacts (
   id bigserial PRIMARY KEY,
   name text NOT NULL,

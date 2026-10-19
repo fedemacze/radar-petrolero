@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.19.0",
-  "description": "Radar autónomo de oportunidades comerciales para Vermaz",
+  "description": "Radar autónomo de oportunidades comerciales petroleras",
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "doctor": "node scripts/doctor.mjs",

@@ -21,7 +21,7 @@ export function opportunity(overrides: Partial<Opportunity> = {}): Opportunity {
   return {
     relevante: true, empresa: "YPF", empresa_prioritaria: false, provincia: "Chubut",
     cuenca: "Cuenca del Golfo San Jorge", proyecto: "Reactivación de pozos",
-    servicios_vermaz: [{ servicio: "Mantenimiento de instalaciones de superficie", justificacion: "Habrá obras de superficie" }],
+    servicios_aplicables: [{ servicio: "Mantenimiento de instalaciones de superficie", justificacion: "Habrá obras de superficie" }],
     tipo_senal: "Nueva inversión", score_radar: 82, prioridad: "Alta", etapa_temporal: "En desarrollo",
     horizonte: "Corto / 1–3 meses", hechos_publicados: ["YPF anunció la inversión"], inferencias_comerciales: ["Puede requerir mantenimiento"],
     resumen_evidencia: "Inversión confirmada", analisis_ia: "Oportunidad alineada", area_objetivo: "Operaciones",
