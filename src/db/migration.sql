@@ -130,6 +130,14 @@ CREATE TABLE IF NOT EXISTS opportunity_followups (
 );
 
 ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS contacted_at timestamptz;
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'Prospecto';
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS outcome text NOT NULL DEFAULT 'Sin respuesta';
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS owner_name text NOT NULL DEFAULT '';
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS probability smallint NOT NULL DEFAULT 10 CHECK(probability BETWEEN 0 AND 100);
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS next_action text NOT NULL DEFAULT '';
+ALTER TABLE opportunity_followups ADD COLUMN IF NOT EXISTS next_contact_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS opportunity_followups_next_contact_idx ON opportunity_followups(next_contact_at);
 
 CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts(normalized_company);
 

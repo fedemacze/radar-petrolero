@@ -135,7 +135,8 @@ export class Database {
   }
 
   async listFollowups(): Promise<unknown[]> {
-    return (await this.pool.query("SELECT event_key,status,contact_id,notes,contacted_at,updated_at FROM opportunity_followups")).rows;
+    return (await this.pool.query(`SELECT event_key,status,contact_id,notes,stage,outcome,owner_name AS owner,probability,
+      next_action,next_contact_at,contacted_at,updated_at FROM opportunity_followups ORDER BY next_contact_at NULLS LAST,updated_at DESC`)).rows;
   }
 
   async importContacts(rows: Array<Record<string, string>>, source = "csv"): Promise<{ imported: number; skipped: number }> {
@@ -168,6 +169,19 @@ export class Database {
     await this.pool.query(`INSERT INTO opportunity_followups(event_key,status,contact_id,notes,contacted_at) VALUES($1,$2,$3,$4,CASE WHEN $2='contacted' THEN now() ELSE NULL END)
       ON CONFLICT(event_key) DO UPDATE SET status=EXCLUDED.status,contact_id=EXCLUDED.contact_id,notes=EXCLUDED.notes,
         contacted_at=CASE WHEN EXCLUDED.status='contacted' THEN now() ELSE opportunity_followups.contacted_at END,updated_at=now()`, [eventKey, status, contactId, notes.slice(0, 4000)]);
+  }
+
+  async saveDetailedFollowup(input: { eventKey: string; stage: string; outcome: string; summary: string; owner: string; probability: number; nextAction: string; nextContactAt: string | null }): Promise<unknown> {
+    const probability = Math.max(0, Math.min(100, Math.round(input.probability)));
+    const status = ['Ganada', 'Perdida'].includes(input.stage) ? 'replied' : 'contacted';
+    const result = await this.pool.query(`INSERT INTO opportunity_followups(event_key,status,notes,stage,outcome,owner_name,probability,next_action,next_contact_at,contacted_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
+      ON CONFLICT(event_key) DO UPDATE SET status=EXCLUDED.status,notes=EXCLUDED.notes,stage=EXCLUDED.stage,outcome=EXCLUDED.outcome,
+        owner_name=EXCLUDED.owner_name,probability=EXCLUDED.probability,next_action=EXCLUDED.next_action,next_contact_at=EXCLUDED.next_contact_at,
+        contacted_at=COALESCE(opportunity_followups.contacted_at,now()),updated_at=now()
+      RETURNING event_key,status,notes AS summary,stage,outcome,owner_name AS owner,probability,next_action,next_contact_at,contacted_at,updated_at`,
+      [input.eventKey, status, input.summary.slice(0, 4000), input.stage.slice(0, 100), input.outcome.slice(0, 200), input.owner.slice(0, 200), probability, input.nextAction.slice(0, 500), input.nextContactAt]);
+    return result.rows[0];
   }
 
   async findContractCandidates(limit = 4): Promise<Array<{ id: number; article: Article }>> {

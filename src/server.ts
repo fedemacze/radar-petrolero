@@ -36,6 +36,7 @@ const attio = env.ATTIO_API_KEY ? new AttioClient({ apiKey: env.ATTIO_API_KEY, o
 const runner = new RadarRunner({ database, sourceAdapter, analyzer, contractAnalyzer, attio, logger, dryRun: effectiveDryRun, attioSyncLimit: env.ATTIO_SYNC_LIMIT });
 const indexHtml = await readFile(resolve("dashboard/dist/index.html"));
 const appJs = await readFile(resolve("dashboard/dist/app.js"));
+const crmJs = await readFile(resolve("dashboard/dist/crm.js"));
 let running = false;
 let attioStatus: { configured: boolean; valid: boolean; error: string | null } = { configured: Boolean(attio), valid: false, error: null };
 
@@ -111,6 +112,19 @@ function scheduleNext(): void {
   logger.info("Próxima ejecución programada", { at: next.toISOString() });
 }
 
+function outlookEventUrl(opportunity: any, followup: any): string | null {
+  if (!followup?.next_contact_at) return null;
+  const start = new Date(followup.next_contact_at);
+  const end = new Date(start.getTime() + 30 * 60_000);
+  const params = new URLSearchParams({
+    path: "/calendar/action/compose", rru: "addevent",
+    subject: `Contactar a ${opportunity?.opportunity?.empresa || "oportunidad comercial"}`,
+    startdt: start.toISOString(), enddt: end.toISOString(),
+    body: `${followup.next_action || "Seguimiento comercial"}\n\n${followup.summary || ""}`,
+  });
+  return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
 await database.migrate();
 if (attio) {
   try {
@@ -167,6 +181,19 @@ const server = createServer(async (request, response) => {
       await database.saveFollowup(payload.eventKey, payload.status, payload.contactId ?? null, payload.notes ?? "");
       return json(response, 200, { ok: true });
     }
+    if (request.url === "/api/followups" && request.method === "GET") return json(response, 200, { data: await database.listFollowups() });
+    if (request.url === "/api/followup-detail" && request.method === "POST") {
+      const payload = JSON.parse((await readBody(request, 50_000)).toString("utf8")) as Record<string, unknown>;
+      const eventKey = String(payload.eventKey ?? "").trim(); const summary = String(payload.summary ?? "").trim();
+      if (!eventKey || !summary) return json(response, 400, { error: "La oportunidad y el resumen son obligatorios" });
+      const rawNext = String(payload.nextContactAt ?? "").trim();
+      const nextContactAt = rawNext ? new Date(rawNext) : null;
+      if (nextContactAt && Number.isNaN(nextContactAt.getTime())) return json(response, 400, { error: "La fecha del próximo contacto no es válida" });
+      const followup = await database.saveDetailedFollowup({ eventKey, summary, stage: String(payload.stage ?? "Prospecto"), outcome: String(payload.outcome ?? "Sin respuesta"), owner: String(payload.owner ?? ""), probability: Number(payload.probability ?? 10), nextAction: String(payload.nextAction ?? ""), nextContactAt: nextContactAt?.toISOString() ?? null });
+      const snapshot = await database.getDashboardSnapshot() as any;
+      const opportunity = (snapshot.opportunities as any[]).find((item) => item.event_key === eventKey);
+      return json(response, 200, { data: followup, outlookUrl: outlookEventUrl(opportunity, followup) });
+    }
     if (request.url === "/api/run" && request.method === "POST") {
       if (running) return json(response, 409, { ok: false, message: "Ya hay una ejecución en curso" });
       void execute("manual");
@@ -179,6 +206,10 @@ const server = createServer(async (request, response) => {
     if (request.url?.startsWith("/app.js")) {
       response.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" });
       return response.end(appJs);
+    }
+    if (request.url?.startsWith("/crm.js")) {
+      response.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" });
+      return response.end(crmJs);
     }
     response.writeHead(404); response.end("No encontrado");
   } catch (error) {
